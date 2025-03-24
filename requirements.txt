@@ -1,0 +1,7 @@
+requests
+pandas
+numpy
+flask
+requests
+deepdiff
+pylint
