@@ -99,9 +99,10 @@ def global_mean_request():
     # Register job. Don't wait for task to finish
     # Increment job_id counter
     # Return associated job_id
-
+    print("task")
     data = request.json
     job_id = webserver.tasks_runner.add_job(JobType.GLOBAL_MEAN, data)
+    print("added task")
     return jsonify({"job_id": job_id})
 
 @webserver.route('/api/diff_from_mean', methods=['POST'])

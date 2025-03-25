@@ -90,24 +90,26 @@ class TaskRunner(Thread):
             try:
                 job = self.job_queue.get(timeout=1)
                 if job:
-                    self.process_job(job)
+                    self._process_job(job)
                     self.job_queue.task_done()
             except Exception as e:
                 continue
 
 
-    def process_job(self, job):
+    def _process_job(self, job):
         job_id = job["job_id"]
-        result = self.perform_calculation(job)
-        self.save_result_to_disk(job_id, result)
 
-    def perform_calculation(self, job):
-        return {"job_id": job["job_id"], "result": "some_statistics"}
 
-    def save_result_to_disk(self, job_id, result):
-        file_path = os.path.join("results", f"{job_id}.json")
-        with open(file_path, "w") as f:
-            json.dump(result, f)
+        # Simulate actual computing
+        # TODO: at this moment, the logic for the parallel computing (the thread pool) looks to be correct,
+        # TODO: implement the actual calculation for each request type :)
+        time.sleep(5)
+
+        # Save results to disk
+        with open(os.path.join("results", f"{job_id}.json"), "w") as f:
+            json.dump({"status": "done", "data": ""}, f)
+
+
 
 
 
