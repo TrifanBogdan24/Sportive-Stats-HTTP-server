@@ -2,6 +2,8 @@ import os
 import json
 import csv
 
+from typing import List
+
 
 class Table_Entry:
     def __init__(self,
@@ -61,7 +63,7 @@ class DataIngestor:
         ]
 
         
-        self.table_entries = []
+        self.table_entries: List[Table_Entry] = []
         self._read_csv(csv_path)
 
     def _read_csv(self, csv_path):
@@ -92,6 +94,34 @@ class DataIngestor:
                     print(f"Skipping row {i} due to error: {e}")
 
 
+    def compute_response_states_mean(self, question: str):
+        selected_rows: List[Table_Entry] = list(filter(lambda entry: entry.question == question and entry.data_value is not None, self.table_entries))
+        return selected_rows
+
+    def compute_response_state_mean(self, question: str, state: str) -> str:
+        selected_rows = list(filter(lambda entry: entry.question == question and 
+                                                entry.location_desc == state and 
+                                                entry.data_value is not None, 
+                                    self.table_entries))
+        if not selected_rows:
+            return json.dumps({state: None})
+
+        state_mean = sum(entry.data_value for entry in selected_rows) / len(selected_rows)
+
+        return json.dumps({state: state_mean})
+
+
+    def compute_response_best5(self, question: str):
+        pass
+
+    def compute_response_worst5(self, quetion: str):
+        pass
+
+    def compute_response_global_mean(self, question: str):
+        pass
+
+    def compute_response_diff_from_mean(self, question: str):
+        pass
 
 if __name__ == '__main__':
     """For testing purposes"""

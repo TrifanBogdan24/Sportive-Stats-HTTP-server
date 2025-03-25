@@ -6,7 +6,7 @@ from app.task_runner import ThreadPool
 if not os.path.exists('results'):
     os.mkdir('results')
 else:
-    # MyTODO: delete everything from results/* directory
+    # MyTODO: begin by deleting everything from results/* directory
     for filename in os.listdir('results'):
         file_path = os.path.join('results', filename)
         try:

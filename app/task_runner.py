@@ -8,6 +8,7 @@ from enum import Enum
 from typing import Dict
 
 
+
 class JobType(Enum):
     GET_RESULTS = "/api/get_results"
     STATES_MEAN = "/api/states_mean"
@@ -18,6 +19,7 @@ class JobType(Enum):
     DIFF_FROM_MEAN = "/api/diff_from_mean"
     STATE_DIFF_FROM_MEAN = "api/state_diff_from_mean"
     STATE_MEAN_BY_CATEGORY = "api/state_mean_by_category"
+
 
 
 
@@ -97,17 +99,26 @@ class TaskRunner(Thread):
 
 
     def _process_job(self, job):
-        job_id = job["job_id"]
+        from app import webserver
+        
+
+        job_id: int = job["job_id"]
+        job_type: JobType = job["job_type"]
+        request_data: str = job["request_data"]
+        response_data: str = ""
 
 
-        # Simulate actual computing
-        # TODO: at this moment, the logic for the parallel computing (the thread pool) looks to be correct,
-        # TODO: implement the actual calculation for each request type :)
-        time.sleep(5)
+        if job_type == JobType.STATE_MEAN.value:
+            question: str = request_data.get("question", "")
+            state: str = request_data.get("state", "")
+            response_data = webserver.data_ingestor.compute_response_state_mean(question, state)
+
+
+
 
         # Save results to disk
         with open(os.path.join("results", f"{job_id}.json"), "w") as f:
-            json.dump({"status": "done", "data": ""}, f)
+            json.dump({"status": "done", "data": response_data}, f)
 
 
 

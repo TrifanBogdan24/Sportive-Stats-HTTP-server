@@ -15,7 +15,7 @@ install: enforce_venv requirements.txt
 	python3 -m pip install -r requirements.txt
 
 run_server: enforce_venv
-	flask run
+	flask run --debug
 
 run_tests: enforce_venv
 	python3 checker/checker.py
