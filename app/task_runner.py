@@ -61,7 +61,7 @@ class ThreadPool:
             webserver.job_counter += 1
 
         # Creeare unui JOB nou
-        job = {"job_id": job_id, "job_type": job_type.value, "request_data": request_data}
+        job = {"job_id": job_id, "job_type": job_type, "request_data": request_data}
         self.job_queue.put(job)
 
         # Scrierea JOB-ului pe disc
@@ -108,7 +108,10 @@ class TaskRunner(Thread):
         response_data: str = ""
 
 
-        if job_type == JobType.STATE_MEAN.value:
+        if job_type == JobType.STATES_MEAN:
+            question: str = request_data.get("question", "")
+            response_data = webserver.data_ingestor.compute_response_states_mean(question)
+        elif job_type == JobType.STATE_MEAN:
             question: str = request_data.get("question", "")
             state: str = request_data.get("state", "")
             response_data = webserver.data_ingestor.compute_response_state_mean(question, state)

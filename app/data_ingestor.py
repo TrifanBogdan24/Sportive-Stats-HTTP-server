@@ -94,14 +94,34 @@ class DataIngestor:
                     print(f"Skipping row {i} due to error: {e}")
 
 
-    def compute_response_states_mean(self, question: str):
-        selected_rows: List[Table_Entry] = list(filter(lambda entry: entry.question == question and entry.data_value is not None, self.table_entries))
-        return selected_rows
+    def compute_response_states_mean(self, question: str) -> str:
+        selected_rows = list(filter(lambda entry: entry.question == question
+                                    and entry.data_value is not None, 
+                                    self.table_entries))
+    
+        state_totals = {}
+        state_counts = {}
+        
+        for entry in selected_rows:
+            state = entry.location_desc
+            if state not in state_totals:
+                state_totals[state] = 0
+                state_counts[state] = 0
+            state_totals[state] += entry.data_value
+            state_counts[state] += 1
+        
+        state_means = {state: state_totals[state] / state_counts[state] for state in state_totals}
+        
+        sorted_state_means = dict(sorted(state_means.items(), key=lambda item: item[1]))
+        
+        return json.dumps(sorted_state_means)
+
 
     def compute_response_state_mean(self, question: str, state: str) -> str:
-        selected_rows = list(filter(lambda entry: entry.question == question and 
-                                                entry.location_desc == state and 
-                                                entry.data_value is not None, 
+        # Primește o întrebare (din setul de întrebări de mai sus) și un stat, și calculează media valorilor înregistrate (Data_Value)
+        selected_rows = list(filter(lambda entry: entry.question == question
+                                    and entry.location_desc == state
+                                    and entry.data_value is not None, 
                                     self.table_entries))
         if not selected_rows:
             return json.dumps({state: None})
