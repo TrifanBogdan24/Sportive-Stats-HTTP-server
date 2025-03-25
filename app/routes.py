@@ -3,6 +3,7 @@ from flask import request, jsonify
 
 import os
 import json
+from app.task_runner import JobType
 
 # Example endpoint definition
 @webserver.route('/api/post_endpoint', methods=['POST'])
@@ -49,7 +50,9 @@ def states_mean_request():
     # Increment job_id counter
     # Return associated job_id
 
-    return jsonify({"status": "NotImplemented"})
+    data = request.json
+    job_id = webserver.tasks_runner.add_job(JobType.STATES_MEAN, data)
+    return jsonify({"job_id": job_id})
 
 @webserver.route('/api/state_mean', methods=['POST'])
 def state_mean_request():
@@ -59,7 +62,9 @@ def state_mean_request():
     # Increment job_id counter
     # Return associated job_id
 
-    return jsonify({"status": "NotImplemented"})
+    data = request.json
+    job_id = webserver.tasks_runner.add_job(JobType.STATE_MEAN, data)
+    return jsonify({"job_id": job_id})
 
 
 @webserver.route('/api/best5', methods=['POST'])
@@ -70,7 +75,10 @@ def best5_request():
     # Increment job_id counter
     # Return associated job_id
 
-    return jsonify({"status": "NotImplemented"})
+    data = request.json
+    job_id = webserver.tasks_runner.add_job(JobType.BEST_5, data)
+    return jsonify({"job_id": job_id})
+
 
 @webserver.route('/api/worst5', methods=['POST'])
 def worst5_request():
@@ -80,7 +88,9 @@ def worst5_request():
     # Increment job_id counter
     # Return associated job_id
 
-    return jsonify({"status": "NotImplemented"})
+    data = request.json
+    job_id = webserver.tasks_runner.add_job(JobType.WORST_5, data)
+    return jsonify({"job_id": job_id})
 
 @webserver.route('/api/global_mean', methods=['POST'])
 def global_mean_request():
@@ -90,7 +100,9 @@ def global_mean_request():
     # Increment job_id counter
     # Return associated job_id
 
-    return jsonify({"status": "NotImplemented"})
+    data = request.json
+    job_id = webserver.tasks_runner.add_job(JobType.GLOBAL_MEAN, data)
+    return jsonify({"job_id": job_id})
 
 @webserver.route('/api/diff_from_mean', methods=['POST'])
 def diff_from_mean_request():
@@ -100,7 +112,9 @@ def diff_from_mean_request():
     # Increment job_id counter
     # Return associated job_id
 
-    return jsonify({"status": "NotImplemented"})
+    data = request.json
+    job_id = webserver.tasks_runner.add_job(JobType.DIFF_FROM_MEAN, data)
+    return jsonify({"job_id": job_id})
 
 @webserver.route('/api/state_diff_from_mean', methods=['POST'])
 def state_diff_from_mean_request():
@@ -110,7 +124,9 @@ def state_diff_from_mean_request():
     # Increment job_id counter
     # Return associated job_id
 
-    return jsonify({"status": "NotImplemented"})
+    data = request.json
+    job_id = webserver.tasks_runner.add_job(JobType.STATE_DIFF_FROM_MEAN, data)
+    return jsonify({"job_id": job_id})
 
 @webserver.route('/api/mean_by_category', methods=['POST'])
 def mean_by_category_request():
@@ -120,7 +136,9 @@ def mean_by_category_request():
     # Increment job_id counter
     # Return associated job_id
 
-    return jsonify({"status": "NotImplemented"})
+    data = request.json
+    job_id = webserver.tasks_runner.add_job(JobType.MEAN_BY_CATEGORY, data)
+    return jsonify({"job_id": job_id})
 
 @webserver.route('/api/state_mean_by_category', methods=['POST'])
 def state_mean_by_category_request():
@@ -130,7 +148,9 @@ def state_mean_by_category_request():
     # Increment job_id counter
     # Return associated job_id
 
-    return jsonify({"status": "NotImplemented"})
+    data = request.json
+    job_id = webserver.tasks_runner.add_job(JobType.STATE_MEAN_BY_CATEGORY, data)
+    return jsonify({"job_id": job_id})
 
 # You can check localhost in your browser to see what this displays
 @webserver.route('/')

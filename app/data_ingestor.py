@@ -4,7 +4,10 @@ import csv
 
 
 class Table_Entry:
-    def __init__(self, index: int, year_start: int, year_end: int, location_abbr: str, location_desc: str, datasource: str, classification: str, topic: str, question: str, data_value: float, stratification_category1: str, stratification1: str):
+    def __init__(self,
+                index: int, year_start: int, year_end: int, location_abbr: str, location_desc: str,
+                datasource: str, classification: str, topic: str, question: str,
+                data_value: float, stratification_category1: str, stratification1: str):
         """Initialize a CSV_Entry instance with the provided arguments"""
         self.index = index
         self.year_start = year_start

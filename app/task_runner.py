@@ -1,8 +1,26 @@
 from queue import Queue
-from threading import Thread, Event
+from threading import Thread, Event, Lock
 import time
 import os
 import json
+
+from enum import Enum
+from typing import Dict
+
+
+class JobType(Enum):
+    GET_RESULTS = "/api/get_results"
+    STATES_MEAN = "/api/states_mean"
+    STATE_MEAN = "/api/state_mean"
+    BEST_5 = "/api/best5"
+    WORST_5 = "/api/worst5"
+    GLOBAL_MEAN = "/api/global_mean"
+    DIFF_FROM_MEAN = "/api/diff_from_mean"
+    STATE_DIFF_FROM_MEAN = "api/state_diff_from_mean"
+    STATE_MEAN_BY_CATEGORY = "api/state_mean_by_category"
+
+
+
 
 class ThreadPool:
     def __init__(self):
@@ -19,22 +37,36 @@ class ThreadPool:
 
         # If the environment variable is not set (is None),
         # it will take the number of CPU cores
-        self.num_threads = os.getenv("TP_NUM_OF_THREADS", os.cpu_count())
-
+        self.num_threads = int(os.getenv("TP_NUM_OF_THREADS", os.cpu_count()))
+        
         self.job_queue = Queue()
         self.shutdown_event = Event()
-
-        self.job_counter = 1
-        self.lock_job_counter = Lock() 
-
+        
+        self.lock_job_counter = Lock()
+        
         self.workers = []
+
         for _ in range(self.num_threads):
             worker = TaskRunner(self.job_queue, self.shutdown_event)
             worker.start()
             self.workers.append(worker)
-            
-    def add_job(self, job):
+
+    def add_job(self, job_type: JobType, request_data: Dict):
+        from app import webserver
+
+        with self.lock_job_counter:
+            job_id = webserver.job_counter
+            webserver.job_counter += 1
+
+        # Creeare unui JOB nou
+        job = {"job_id": job_id, "job_type": job_type.value, "request_data": request_data}
         self.job_queue.put(job)
+
+        # Scrierea JOB-ului pe disc
+        with open(os.path.join("results", f"{job_id}.json"), "w") as f:
+            json.dump({"status": "running"}, f)
+
+        return job_id
 
     def shutdown(self):
         self.shutdown_event.set()
@@ -43,7 +75,7 @@ class ThreadPool:
 
 
 class TaskRunner(Thread):
-    def __init__(self):
+    def __init__(self, job_queue, shutdown_event):
         # TODO: init necessary data structures
         super().__init__()
         self.job_queue = job_queue
@@ -76,3 +108,9 @@ class TaskRunner(Thread):
         file_path = os.path.join("results", f"{job_id}.json")
         with open(file_path, "w") as f:
             json.dump(result, f)
+
+
+
+if __name__ == '__main__':
+    """For test purposes only"""
+    tasks_runner = ThreadPool()
