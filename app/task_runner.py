@@ -18,6 +18,7 @@ class JobType(Enum):
     GLOBAL_MEAN = "/api/global_mean"
     DIFF_FROM_MEAN = "/api/diff_from_mean"
     STATE_DIFF_FROM_MEAN = "api/state_diff_from_mean"
+    MEAN_BY_CATEGORY = "api/mean_by_category"
     STATE_MEAN_BY_CATEGORY = "api/state_mean_by_category"
 
 
@@ -131,9 +132,9 @@ class TaskRunner(Thread):
             question: str = request_data.get("question", "")
             state: str = request_data.get("state", "")
             response_data = webserver.data_ingestor.compute_response_state_diff_from_mean(question, state)       
-
-
-
+        elif job_type == JobType.MEAN_BY_CATEGORY:
+            question: str = request_data.get("question", "")
+            response_data = webserver.data_ingestor.compute_response_mean_by_category(question)
 
 
         # Save results to disk

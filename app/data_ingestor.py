@@ -240,6 +240,75 @@ class DataIngestor:
         diff_from_mean = global_mean - state_mean
 
         return json.dumps({state: diff_from_mean})
+    
+    def compute_response_mean_by_category(self, question: str) -> str:
+        selected_rows = [
+            entry for entry in self.table_entries
+            if entry.question == question and entry.data_value is not None
+        ]
+
+        if not selected_rows:
+            return json.dumps({"error": "No data available for the given question"})
+
+        category_totals = {}
+        category_counts = {}
+
+        for entry in selected_rows:
+            key = (entry.location_desc, entry.stratification_category1, entry.stratification1)
+
+            if key not in category_totals:
+                category_totals[key] = 0
+                category_counts[key] = 0
+
+            category_totals[key] += entry.data_value
+            category_counts[key] += 1
+
+        category_means = {key: category_totals[key] / category_counts[key] for key in category_totals}
+
+        # Sorting order
+        category_priority = {
+            "Age (years)": 1,
+            "Education": 2,
+            "Gender": 3,
+            "Income": 4,
+            "Race/Ethnicity": 5,
+            "Total": 6
+        }
+
+        age_priority = {
+            "18 - 24": 1, "25 - 34": 2, "35 - 44": 3, "45 - 54": 4, "55 - 64": 5, "65 or older": 6
+        }
+
+        education_priority = {
+            "Less than high school": 1, "High school graduate": 2,
+            "Some college or technical school": 3, "College graduate": 4
+        }
+
+        income_priority = {
+            "Less than $15,000": 1, "$15,000 - $24,999": 2, "$25,000 - $34,999": 3,
+            "$35,000 - $49,999": 4, "$50,000 - $74,999": 5, "$75,000 or greater": 6,
+            "Data not reported": 7
+        }
+
+        def custom_sort_key(item):
+            state, category, value = item[0]
+            category_rank = category_priority.get(category, 99)
+
+            if category == "Age (years)":
+                value_rank = age_priority.get(value, 99)
+            elif category == "Education":
+                value_rank = education_priority.get(value, 99)
+            elif category == "Income":
+                value_rank = income_priority.get(value, 99)
+            else:
+                value_rank = 99  # Default for categories without custom ranking
+
+            return (state, category_rank, value_rank, value)
+
+        sorted_means = dict(sorted(category_means.items(), key=custom_sort_key))
+
+        return json.dumps({str(k): v for k, v in sorted_means.items()}, indent=4)
+
 
 
 if __name__ == '__main__':
