@@ -115,6 +115,12 @@ class TaskRunner(Thread):
             question: str = request_data.get("question", "")
             state: str = request_data.get("state", "")
             response_data = webserver.data_ingestor.compute_response_state_mean(question, state)
+        elif job_type == JobType.BEST_5:
+            question: str = request_data.get("question", "")
+            # TODO: compute response
+        elif job_type == JobType.GLOBAL_MEAN:
+            question: str = request_data.get("question", "")
+            response_data = webserver.data_ingestor.compute_response_global_mean(question)
 
 
 

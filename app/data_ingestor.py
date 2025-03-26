@@ -26,20 +26,7 @@ class Table_Entry:
 
     def to_json(self) -> str:
         """Returns a JSON-formatted string of the Table_Entry instance."""
-        return (
-            "{\n"
-            f"\tIndex: {self.index},\n"
-            f"\tYearStart: {self.year_start},\n"
-            f"\tYearEnd: {self.year_end},\n"
-            f"\tLocationAbbr: \"{self.location_abbr}\",\n"
-            f"\tLocationDesc: \"{self.location_desc}\",\n"
-            f"\tDatasource: \"{self.datasource}\",\n"
-            f"\tClassification: \"{self.classification}\",\n"
-            f"\tData_Value: {self.data_value},\n"
-            f"\tStratificationCategory1: {self.stratification_category1},\n"
-            f"\tStratification1: {self.stratification1}\n"
-            "}"
-        )
+        return json.dumps(self.__dict__)
 
 class DataIngestor:
     def __init__(self, csv_path: str):
@@ -138,7 +125,14 @@ class DataIngestor:
         pass
 
     def compute_response_global_mean(self, question: str):
-        pass
+        selected_values = [entry.data_value for entry in self.table_entries if entry.question == question and entry.data_value is not None]
+
+        if not selected_values:
+            return json.dumps({"global_mean": None})
+
+        global_mean = sum(selected_values) / len(selected_values)
+        return json.dumps({"global_mean": global_mean})
+
 
     def compute_response_diff_from_mean(self, question: str):
         pass
