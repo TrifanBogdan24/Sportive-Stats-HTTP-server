@@ -135,7 +135,33 @@ class DataIngestor:
 
 
     def compute_response_diff_from_mean(self, question: str):
-        pass
+        selected_values = [entry.data_value for entry in self.table_entries if entry.question == question and entry.data_value is not None]
+        
+        if not selected_values:
+            return json.dumps({"error": "No data available for the given question"})
+
+        global_mean = sum(selected_values) / len(selected_values)
+
+        state_totals = {}
+        state_counts = {}
+
+        for entry in self.table_entries:
+            if entry.question == question and entry.data_value is not None:
+                state = entry.location_desc
+                if state not in state_totals:
+                    state_totals[state] = 0
+                    state_counts[state] = 0
+                state_totals[state] += entry.data_value
+                state_counts[state] += 1
+
+        state_means = {state: state_totals[state] / state_counts[state] for state in state_totals}
+
+        diff_from_mean = {state: global_mean - state_means[state] for state in state_means}
+
+        sorted_diff_from_mean = dict(sorted(diff_from_mean.items(), key=lambda item: item[1], reverse=True))
+
+        return json.dumps(sorted_diff_from_mean)
+
 
 if __name__ == '__main__':
     """For testing purposes"""
