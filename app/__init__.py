@@ -7,13 +7,8 @@ if not os.path.exists('results'):
     os.mkdir('results')
 else:
     # MyTODO: begin by deleting everything from results/* directory
-    for filename in os.listdir('results'):
-        file_path = os.path.join('results', filename)
-        try:
-            if os.path.isfile(file_path):
-                os.remove(file_path)
-        except Exception as e:
-            print(f"Error deleting {file_path}: {e}")
+    os.system("rm -rf results/*")
+
 
 webserver = Flask(__name__)
 
