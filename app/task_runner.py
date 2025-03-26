@@ -7,7 +7,19 @@ import json
 from enum import Enum
 from typing import Dict
 
+import logging
+from logging.handlers import RotatingFileHandler
 
+def formatTime():
+    return time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())
+
+log_formatter = logging.Formatter('%(message)s')
+log_handler = RotatingFileHandler("webserver.log", maxBytes=5*1024*1024, backupCount=5)
+log_handler.setFormatter(log_formatter)
+log_handler.setLevel(logging.INFO)
+logger = logging.getLogger("webserver")
+logger.setLevel(logging.INFO)
+logger.addHandler(log_handler)
 
 class JobType(Enum):
     GET_RESULTS = "/api/get_results"
@@ -21,10 +33,6 @@ class JobType(Enum):
     MEAN_BY_CATEGORY = "api/mean_by_category"
     STATE_MEAN_BY_CATEGORY = "api/state_mean_by_category"
 
-
-
-
-
 class ThreadPool:
     def __init__(self):
         # You must implement a ThreadPool of TaskRunners
@@ -36,7 +44,6 @@ class ThreadPool:
         #   * create more threads than the hardware concurrency allows
         #   * recreate threads for each task
         # Note: the TP_NUM_OF_THREADS env var will be defined by the checker
-
 
         # If the environment variable is not set (is None),
         # it will take the number of CPU cores
@@ -61,11 +68,15 @@ class ThreadPool:
             job_id = webserver.job_counter
             webserver.job_counter += 1
 
-        # Creeare unui JOB nou
+            # Write in .log file
+            timestamp = formatTime()
+            logger.info(f"{timestamp} - INFO - Received request: job_id={job_id}, job_type={job_type.value}, request_data={request_data}")
+
+        # Create new JOB
         job = {"job_id": job_id, "job_type": job_type, "request_data": request_data}
         self.job_queue.put(job)
 
-        # Scrierea JOB-ului pe disc
+        # Write JOB's result on disk
         with open(os.path.join("results", f"{job_id}.json"), "w") as f:
             json.dump({"status": "running"}, f)
 
@@ -75,7 +86,6 @@ class ThreadPool:
         self.shutdown_event.set()
         for worker in self.workers:
             worker.join()
-
 
 class TaskRunner(Thread):
     def __init__(self, job_queue, shutdown_event):
@@ -98,16 +108,13 @@ class TaskRunner(Thread):
             except Exception as e:
                 continue
 
-
     def _process_job(self, job):
         from app import webserver
-        
 
         job_id: int = job["job_id"]
         job_type: JobType = job["job_type"]
         request_data: str = job["request_data"]
         response_data: str = ""
-
 
         if job_type == JobType.STATES_MEAN:
             question: str = request_data.get("question", "")
@@ -136,14 +143,9 @@ class TaskRunner(Thread):
             question: str = request_data.get("question", "")
             response_data = webserver.data_ingestor.compute_response_mean_by_category(question)
 
-
-        # Save results to disk
+        # Save JOB's results to disk
         with open(os.path.join("results", f"{job_id}.json"), "w") as f:
             json.dump({"status": "done", "data": response_data}, f)
-
-
-
-
 
 if __name__ == '__main__':
     """For test purposes only"""
