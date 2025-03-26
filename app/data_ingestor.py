@@ -119,10 +119,69 @@ class DataIngestor:
 
 
     def compute_response_best5(self, question: str):
-        pass
+        selected_rows = list(filter(lambda entry: entry.question == question and entry.data_value is not None, self.table_entries))
 
-    def compute_response_worst5(self, quetion: str):
-        pass
+        if not selected_rows:
+            return json.dumps({"error": "No data available for the given question"})
+
+        state_totals = {}
+        state_counts = {}
+
+        for entry in selected_rows:
+            state = entry.location_desc
+            if state not in state_totals:
+                state_totals[state] = 0
+                state_counts[state] = 0
+            state_totals[state] += entry.data_value
+            state_counts[state] += 1
+
+        state_means = {state: state_totals[state] / state_counts[state] for state in state_totals}
+
+        # Determine sorting order based on question type
+        if question in self.questions_best_is_min:
+            sorted_states = sorted(state_means.items(), key=lambda item: item[1])  # Ascending (smallest values are best)
+        elif question in self.questions_best_is_max:
+            sorted_states = sorted(state_means.items(), key=lambda item: item[1], reverse=True)  # Descending (largest values are best)
+        else:
+            return json.dumps({"error": "Question not found in predefined lists"})
+
+        best5 = dict(sorted_states[:5])
+
+        return json.dumps(best5)
+
+
+    def compute_response_worst5(self, question: str):
+        selected_rows = list(filter(lambda entry: entry.question == question and entry.data_value is not None, self.table_entries))
+
+        if not selected_rows:
+            return json.dumps({"error": "No data available for the given question"})
+
+        state_totals = {}
+        state_counts = {}
+
+        for entry in selected_rows:
+            state = entry.location_desc
+            if state not in state_totals:
+                state_totals[state] = 0
+                state_counts[state] = 0
+            state_totals[state] += entry.data_value
+            state_counts[state] += 1
+
+        state_means = {state: state_totals[state] / state_counts[state] for state in state_totals}
+
+        # Determine sorting order based on question type
+        if question in self.questions_best_is_min:
+            # Descending (largest values are worst)
+            sorted_states = sorted(state_means.items(), key=lambda item: item[1], reverse=True)
+        elif question in self.questions_best_is_max:
+            # Ascending (smallest values are worst)
+            sorted_states = sorted(state_means.items(), key=lambda item: item[1])
+        else:
+            return json.dumps({"error": "Question not found in predefined lists"})
+
+        worst5 = dict(sorted_states[:5])
+
+        return json.dumps(worst5)
 
     def compute_response_global_mean(self, question: str):
         selected_values = [entry.data_value for entry in self.table_entries if entry.question == question and entry.data_value is not None]
