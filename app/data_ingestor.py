@@ -163,6 +163,26 @@ class DataIngestor:
         return json.dumps(sorted_diff_from_mean)
 
 
+    def compute_response_state_diff_from_mean(self, question: str, state: str):
+        selected_values = [entry.data_value for entry in self.table_entries if entry.question == question and entry.data_value is not None]
+        
+        if not selected_values:
+            return json.dumps({"error": "No data available for the given question"})
+
+        global_mean = sum(selected_values) / len(selected_values)
+
+        state_values = [entry.data_value for entry in self.table_entries if entry.question == question and entry.location_desc == state and entry.data_value is not None]
+
+        if not state_values:
+            return json.dumps({state: None})
+
+        state_mean = sum(state_values) / len(state_values)
+
+        diff_from_mean = global_mean - state_mean
+
+        return json.dumps({state: diff_from_mean})
+
+
 if __name__ == '__main__':
     """For testing purposes"""
     data_ingestor = DataIngestor("../nutrition_activity_obesity_usa_subset.csv")

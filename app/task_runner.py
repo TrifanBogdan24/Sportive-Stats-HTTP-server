@@ -124,6 +124,10 @@ class TaskRunner(Thread):
         elif job_type == JobType.DIFF_FROM_MEAN:
             question: str = request_data.get("question", "")
             response_data = webserver.data_ingestor.compute_response_diff_from_mean(question)
+        elif job_type == JobType.STATE_DIFF_FROM_MEAN:
+            question: str = request_data.get("question", "")
+            state: str = request_data.get("state", "")
+            response_data = webserver.data_ingestor.compute_response_state_diff_from_mean(question, state)       
 
 
 
