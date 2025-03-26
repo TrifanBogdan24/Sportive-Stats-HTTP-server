@@ -134,6 +134,10 @@ class TaskRunner(Thread):
         with open(os.path.join("results", f"{job_id}.json"), "w") as f:
             json.dump({"status": "done", "data": response_data}, f)
 
+        # Write in .log file
+        message = f"- INFO - Computed response for job_id={job_id} can be found at \'results/{job_id}.json\'"
+        webserver.logger.log_message(message)
+
 if __name__ == '__main__':
     """For test purposes only"""
     tasks_runner = ThreadPool()
