@@ -126,7 +126,7 @@ class ThreadPool:
             # JOB's result was already compute and is thread-safe to access it
             with open(file_path, "r") as file:
                 result = json.load(file)
-            return jsonify(result.get("data", {})), 200
+            return jsonify(result), 200
         except Exception as e:
             # Internal Server Error status code
             message = f"- ERROR - Failed to read data for job_id='{job_id}'"
