@@ -1,30 +1,14 @@
 from app import webserver
-from flask import request, jsonify
+from flask import request, jsonify, after_this_request
 
 import os
+import signal
+from sys import exit
 import json
 from app.task_runner import JobType
 
-# Example endpoint definition
-@webserver.route('/api/post_endpoint', methods=['POST'])
-def post_endpoint():
-    if request.method == 'POST':
-        # Assuming the request contains JSON data
-        data = request.json
-        print(f"got data in post {data}")
-
-        # Process the received data
-        # For demonstration purposes, just echoing back the received data
-        response = {"message": "Received data successfully", "data": data}
-
-        # Sending back a JSON response
-        return jsonify(response)
-    else:
-        # Method Not Allowed
-        return jsonify({"error": "Method not allowed"}), 405
-
 @webserver.route('/api/get_results/<job_id>', methods=['GET'])
-def get_response(job_id: str):
+def get_job_result(job_id: str):
 
     job_id_integer: int = 0
     
@@ -44,6 +28,16 @@ def get_response(job_id: str):
 
 @webserver.route('/api/states_mean', methods=['POST'])
 def states_mean_request():
+    with webserver.lock_is_shutting_down:
+        if webserver.is_shutting_down is True:
+            # Write in .log file
+            message = f"- ERROR - Cannot receive processing request, like '/api/states_mean', after '/api/graceful_shutdown'!"
+            webserver.logger.log_message(message)
+            # 405 - Method Not Allowed (after /api/graceful_shutdown)
+            return jsonify({"status": "error", "reason": "shutting down"}), 405
+
+
+
     # Get request data
     data = request.json
     # Register job. Don't wait for task to finish
@@ -128,8 +122,8 @@ def state_mean_by_category_request():
 
 @webserver.route('/api/graceful_shutdown', methods=['GET'])
 def graceful_shutdown():
-    # TODO: implement it
-    return jsonify({'status': 'Not Implemented Yet'})
+    webserver.tasks_runner.graceful_shutdown()
+    return jsonify({'status': 'done'})
 
 @webserver.route('/api/jobs', methods=['GET'])
 def get_all_jobs():

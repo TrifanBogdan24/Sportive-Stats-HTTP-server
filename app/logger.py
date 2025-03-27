@@ -28,9 +28,6 @@ class Logger:
         self.logger.setLevel(logging.INFO)
         self.logger.addHandler(self.log_handler)
 
-        timestamp = self.format_time()
-        self.logger.info(f"{timestamp} - INFO - Server started")
-
 
 
     def _delete_old_logs(self):

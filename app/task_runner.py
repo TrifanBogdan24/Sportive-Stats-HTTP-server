@@ -3,6 +3,7 @@ from threading import Thread, Event, Lock
 from flask import jsonify
 import time
 import os
+from sys import exit
 import json
 
 from enum import Enum
@@ -23,6 +24,8 @@ class JobType(Enum):
 
 class ThreadPool:
     def __init__(self):
+        from app import webserver
+
         # You must implement a ThreadPool of TaskRunners
         # Your ThreadPool should check if an environment variable TP_NUM_OF_THREADS is defined
         # If the env var is defined, that is the number of threads to be used by the thread pool
@@ -36,28 +39,35 @@ class ThreadPool:
         # If the environment variable is not set (is None),
         # it will take the number of CPU cores
         self.num_threads = int(os.getenv("TP_NUM_OF_THREADS", os.cpu_count()))
+
+
         
         self.job_queue = Queue()
         self.shutdown_event = Event()
         
         self.lock_job_counter = Lock()
         self.lock_logger = Lock()
-        
+
         self.workers = []
+
+        self.types_processing_jobs = []
 
         for _ in range(self.num_threads):
             worker = TaskRunner(self.job_queue, self.shutdown_event)
             worker.start()
             self.workers.append(worker)
 
+        webserver.logger.log_message(f" - INFO - Server started with {self.num_threads} threads")
+        
+
     def add_job(self, job_type: JobType, request_data: Dict):
         from app import webserver
 
-        # Increment JOB counter
+
+        # Get job_id and increment JOB counter
         with self.lock_job_counter:
             job_id = webserver.job_counter
             webserver.job_counter += 1
-
 
         # Write in .log file
         message = f"- INFO - Received request: job_id={job_id}, job_type={job_type.value}, request_data={request_data}"
@@ -107,30 +117,54 @@ class ThreadPool:
             webserver.logger.log_message(message)
             return jsonify({"status": "error", "reason": "Invalid job_id"}), 500
         
-    def shutdown(self):
-        self.shutdown_event.set()
-        for worker in self.workers:
-            worker.join()
+    def graceful_shutdown(self):
+        from app import webserver
+
+        message = f"- INFO - Received '/api/graceful_shutdown' request"
+        webserver.logger.log_message(message)
+
+        with webserver.lock_is_shutting_down:
+            if webserver.is_shutting_down:
+                return
+            webserver.is_shutting_down = True
+
+        message = f"- INFO - Number of workers thread to join = {len(self.workers)}"
+        webserver.logger.log_message(message)
+
+        self.shutdown_event.set()  # Signal all workers to stop
+
+        # Add None to the queue for each worker (to unblock them)
+        for _ in range(len(self.workers)):
+            self.job_queue.put(None)
+
+
+        # Wait for all workers to exit
+        for tid, worker in enumerate(self.workers):
+            message = f"- INFO - Joining thread TID={tid}"
+            webserver.logger.log_message(message)
+            worker.join()  # Make sure every thread finishes
+
+        message = f"- INFO - Server stopped"
+        webserver.logger.log_message(message)
+
+
 
 class TaskRunner(Thread):
     def __init__(self, job_queue, shutdown_event):
-        # TODO: init necessary data structures
         super().__init__()
         self.job_queue = job_queue
         self.shutdown_event = shutdown_event
 
     def run(self):
-        while True:
-            # TODO
-            # Get pending job
-            # Execute the job and save the result to disk
-            # Repeat until graceful_shutdown
+        while not self.shutdown_event.is_set():  # Check if shutdown event is set
             try:
-                job = self.job_queue.get(timeout=1)
-                if job:
-                    self._process_job(job)
-                    self.job_queue.task_done()
+                job = self.job_queue.get(timeout=1)  # Wait for 1 second for a job
+                if job is None:  # None indicates shutdown request
+                    break  # Break the loop and terminate the worker
+                self._process_job(job)
+                self.job_queue.task_done()
             except Exception as e:
+                # Handle any exceptions and retry getting jobs
                 continue
 
     def _process_job(self, job):
@@ -173,7 +207,7 @@ class TaskRunner(Thread):
             json.dump({"status": "done", "data": response_data}, f)
 
         # Write in .log file
-        message = f"- INFO - Computed response for job_id={job_id} can be found at \'results/{job_id}.json\'"
+        message = f"- INFO - Computed response for job_id={job_id} can be found at 'results/{job_id}.json'"
         webserver.logger.log_message(message)
 
 if __name__ == '__main__':
