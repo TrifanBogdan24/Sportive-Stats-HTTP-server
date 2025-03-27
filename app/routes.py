@@ -101,8 +101,8 @@ def get_all_jobs():
 
 @webserver.route('/api/num_jobs', methods=['GET'])
 def get_num_jobs():
-    # TODO: implement it
-    return jsonify({'status': 'Not Implemented Yet'})
+    num_jobs = webserver.tasks_runner.get_num_pending_jobs()
+    return jsonify({'num_pending_job': f'{num_jobs}'})
 
 
 

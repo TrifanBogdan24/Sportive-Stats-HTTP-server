@@ -118,6 +118,10 @@ class ThreadPool:
             webserver.logger.log_message(message)
             return jsonify({"status": "error", "reason": "Invalid job_id"}), 500
         
+    def get_num_pending_jobs(self):
+        with self.lock_job_counter:
+            return self.job_queue.qsize()
+
     def graceful_shutdown(self):
         from app import webserver
 
@@ -147,6 +151,7 @@ class ThreadPool:
 
         message = f"- INFO - Server stopped"
         webserver.logger.log_message(message)
+
 
 
 
@@ -204,8 +209,8 @@ class TaskRunner(Thread):
             response_data = webserver.data_ingestor.compute_response_mean_by_category(question)
 
         # Save JOB's results to disk
-        with open(os.path.join("results", f"{job_id}.json"), "w") as f:
-            json.dump({"status": "done", "data": response_data}, f)
+        with open(os.path.join("results", f"{job_id}.json"), "w") as file:
+            json.dump({"status": "done", "data": response_data}, file)
 
         # Write in .log file
         message = f"- INFO - Computed response for job_id={job_id} can be found at 'results/{job_id}.json'"
