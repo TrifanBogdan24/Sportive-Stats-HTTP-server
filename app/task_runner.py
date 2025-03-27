@@ -109,9 +109,11 @@ class ThreadPool:
         
         try:
             with open(file_path, "r") as file:
-                data = json.load(file)
-            # Successful response with 200 OK status
-            return jsonify(data), 200
+                result = json.load(file)
+
+            if result.get("status") == "running":
+                return jsonify({"status": "running"}), 200
+            return jsonify(result.get("data", {})), 200
         except Exception as e:
             # Internal Server Error status code
             message = f"- ERROR - Failed to read data for job_id='{job_id}'"
@@ -179,7 +181,7 @@ class TaskRunner(Thread):
         job_id: int = job["job_id"]
         job_type: JobType = job["job_type"]
         request_data: str = job["request_data"]
-        response_data: str = ""
+        response_data: Dict = {}
 
         if job_type == JobType.STATES_MEAN:
             question: str = request_data.get("question", "")
@@ -207,6 +209,7 @@ class TaskRunner(Thread):
         elif job_type == JobType.MEAN_BY_CATEGORY:
             question: str = request_data.get("question", "")
             response_data = webserver.data_ingestor.compute_response_mean_by_category(question)
+
 
         # Save JOB's results to disk
         with open(os.path.join("results", f"{job_id}.json"), "w") as file:

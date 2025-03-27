@@ -2,7 +2,7 @@ import os
 import json
 import csv
 
-from typing import List
+from typing import List, Dict
 
 
 class Table_Entry:
@@ -77,7 +77,7 @@ class DataIngestor:
                     print(f"Skipping row {i} due to error: {e}")
 
 
-    def compute_response_states_mean(self, question: str) -> str:
+    def compute_response_states_mean(self, question: str) -> Dict:
         selected_rows = list(filter(lambda entry: entry.question == question
                                     and entry.data_value is not None, 
                                     self.table_entries))
@@ -97,28 +97,28 @@ class DataIngestor:
         
         sorted_state_means = dict(sorted(state_means.items(), key=lambda item: item[1]))
         
-        return json.dumps(sorted_state_means)
+        return sorted_state_means
 
 
-    def compute_response_state_mean(self, question: str, state: str) -> str:
+    def compute_response_state_mean(self, question: str, state: str) -> Dict:
         # Primește o întrebare (din setul de întrebări de mai sus) și un stat, și calculează media valorilor înregistrate (Data_Value)
         selected_rows = list(filter(lambda entry: entry.question == question
                                     and entry.location_desc == state
                                     and entry.data_value is not None, 
                                     self.table_entries))
         if not selected_rows:
-            return json.dumps({state: None})
+            return {state: None}
 
         state_mean = sum(entry.data_value for entry in selected_rows) / len(selected_rows)
 
-        return json.dumps({state: state_mean})
+        return {state: state_mean}
 
 
-    def compute_response_best5(self, question: str):
+    def compute_response_best5(self, question: str) -> Dict:
         selected_rows = list(filter(lambda entry: entry.question == question and entry.data_value is not None, self.table_entries))
 
         if not selected_rows:
-            return json.dumps({"error": "No data available for the given question"})
+            return {"error": "No data available for the given question"}
 
         state_totals = {}
         state_counts = {}
@@ -139,18 +139,18 @@ class DataIngestor:
         elif question in self.questions_best_is_max:
             sorted_states = sorted(state_means.items(), key=lambda item: item[1], reverse=True)  # Descending (largest values are best)
         else:
-            return json.dumps({"error": "Question not found in predefined lists"})
+            return {"error": "Question not found in predefined lists"}
 
         best5 = dict(sorted_states[:5])
 
-        return json.dumps(best5)
+        return best5
 
 
-    def compute_response_worst5(self, question: str):
+    def compute_response_worst5(self, question: str) -> Dict:
         selected_rows = list(filter(lambda entry: entry.question == question and entry.data_value is not None, self.table_entries))
 
         if not selected_rows:
-            return json.dumps({"error": "No data available for the given question"})
+            return {"error": "No data available for the given question"}
 
         state_totals = {}
         state_counts = {}
@@ -173,27 +173,26 @@ class DataIngestor:
             # Ascending (smallest values are worst)
             sorted_states = sorted(state_means.items(), key=lambda item: item[1])
         else:
-            return json.dumps({"error": "Question not found in predefined lists"})
+            return {"error": "Question not found in predefined lists"}
 
         worst5 = dict(sorted_states[:5])
+        return worst5
 
-        return json.dumps(worst5)
-
-    def compute_response_global_mean(self, question: str):
+    def compute_response_global_mean(self, question: str) -> Dict:
         selected_values = [entry.data_value for entry in self.table_entries if entry.question == question and entry.data_value is not None]
 
         if not selected_values:
-            return json.dumps({"global_mean": None})
+            return {"global_mean": None}
 
         global_mean = sum(selected_values) / len(selected_values)
-        return json.dumps({"global_mean": global_mean})
+        return {"global_mean": global_mean}
 
 
-    def compute_response_diff_from_mean(self, question: str):
+    def compute_response_diff_from_mean(self, question: str) -> Dict:
         selected_values = [entry.data_value for entry in self.table_entries if entry.question == question and entry.data_value is not None]
         
         if not selected_values:
-            return json.dumps({"error": "No data available for the given question"})
+            return {"error": "No data available for the given question"}
 
         global_mean = sum(selected_values) / len(selected_values)
 
@@ -215,36 +214,36 @@ class DataIngestor:
 
         sorted_diff_from_mean = dict(sorted(diff_from_mean.items(), key=lambda item: item[1], reverse=True))
 
-        return json.dumps(sorted_diff_from_mean)
+        return sorted_diff_from_mean
 
 
-    def compute_response_state_diff_from_mean(self, question: str, state: str):
+    def compute_response_state_diff_from_mean(self, question: str, state: str) -> Dict:
         selected_values = [entry.data_value for entry in self.table_entries if entry.question == question and entry.data_value is not None]
         
         if not selected_values:
-            return json.dumps({"error": "No data available for the given question"})
+            return {"error": "No data available for the given question"}
 
         global_mean = sum(selected_values) / len(selected_values)
 
         state_values = [entry.data_value for entry in self.table_entries if entry.question == question and entry.location_desc == state and entry.data_value is not None]
 
         if not state_values:
-            return json.dumps({state: None})
+            return {state: None}
 
         state_mean = sum(state_values) / len(state_values)
 
         diff_from_mean = global_mean - state_mean
 
-        return json.dumps({state: diff_from_mean})
+        return {state: diff_from_mean}
     
-    def compute_response_mean_by_category(self, question: str) -> str:
+    def compute_response_mean_by_category(self, question: str) -> Dict:
         selected_rows = [
             entry for entry in self.table_entries
             if entry.question == question and entry.data_value is not None
         ]
 
         if not selected_rows:
-            return json.dumps({"error": "No data available for the given question"})
+            return {"error": "No data available for the given question"}
 
         category_totals = {}
         category_counts = {}
@@ -303,7 +302,7 @@ class DataIngestor:
 
         sorted_means = dict(sorted(category_means.items(), key=custom_sort_key))
 
-        return json.dumps({str(k): v for k, v in sorted_means.items()}, indent=4)
+        return {str(k): v for k, v in sorted_means.items()}
 
 
 
