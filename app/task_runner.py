@@ -1,5 +1,6 @@
 from queue import Queue
 from threading import Thread, Event, Lock
+from flask import jsonify
 import time
 import os
 import json
@@ -40,6 +41,7 @@ class ThreadPool:
         self.shutdown_event = Event()
         
         self.lock_job_counter = Lock()
+        self.lock_logger = Lock()
         
         self.workers = []
 
@@ -51,9 +53,11 @@ class ThreadPool:
     def add_job(self, job_type: JobType, request_data: Dict):
         from app import webserver
 
+        # Increment JOB counter
         with self.lock_job_counter:
             job_id = webserver.job_counter
             webserver.job_counter += 1
+
 
         # Write in .log file
         message = f"- INFO - Received request: job_id={job_id}, job_type={job_type.value}, request_data={request_data}"
@@ -64,11 +68,45 @@ class ThreadPool:
         self.job_queue.put(job)
 
         # Write JOB's result on disk
-        with open(os.path.join("results", f"{job_id}.json"), "w") as f:
-            json.dump({"status": "running"}, f)
+        with open(os.path.join("results", f"{job_id}.json"), "w") as file:
+            json.dump({"status": "running"}, file)
 
         return job_id
 
+
+    def get_job_result(self, job_id: int):
+        from app import webserver
+
+        num_jobs = 0
+        with self.lock_job_counter:
+            num_jobs = webserver.job_counter - 1
+
+        if job_id < 1 or job_id > num_jobs:
+            # Bad Request status code
+            message = f"- ERROR - Invalid job_id \'{job_id}\'! It is outside of range."
+            webserver.logger.log_message(message)
+            return jsonify({"status": "error", "reason": "Invalid job_id"}), 400
+        
+
+        file_path = f"results/{job_id}.json"
+        
+        if not os.path.exists(file_path):
+            # Not Found status code
+            message = f"- ERROR - Result file for job_id='{job_id}', expected to be at {file_path}, DOES NOT EXIST"
+            webserver.logger.log_message(message)
+            return jsonify({"status": "error", "reason": "Invalid job_id"}), 500
+        
+        try:
+            with open(file_path, "r") as file:
+                data = json.load(file)
+            # Successful response with 200 OK status
+            return jsonify(data), 200
+        except Exception as e:
+            # Internal Server Error status code
+            message = f"- ERROR - Failed to read data for job_id='{job_id}'"
+            webserver.logger.log_message(message)
+            return jsonify({"status": "error", "reason": "Invalid job_id"}), 500
+        
     def shutdown(self):
         self.shutdown_event.set()
         for worker in self.workers:
