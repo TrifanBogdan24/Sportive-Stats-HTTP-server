@@ -78,7 +78,7 @@ def handle_processing_request(request, job_type: JobType):
         if webserver.is_shutting_down is True:
             webserver.logger.log_message(f" - ERROR - Bad request: cannot accept '{job_type.value}' request after GRACEFUL SHUTDOWN!")
             # Exit code 400 - Bad Request
-            return jsonify({"status": "error"}), 400 
+            return jsonify({"status": "error", "reason": "shutting down"}), 400 
         
     # Get request data
     data = request.json
