@@ -28,96 +28,65 @@ def get_job_result(job_id: str):
 
 @webserver.route('/api/states_mean', methods=['POST'])
 def states_mean_request():
-    with webserver.lock_is_shutting_down:
-        if webserver.is_shutting_down is True:
-            # Write in .log file
-            message = f"- ERROR - Cannot receive processing request, like '/api/states_mean', after '/api/graceful_shutdown'!"
-            webserver.logger.log_message(message)
-            # 405 - Method Not Allowed (after /api/graceful_shutdown)
-            return jsonify({"status": "error", "reason": "shutting down"}), 405
+    return handle_processing_request(request, JobType.STATES_MEAN)
 
-
-
-    # Get request data
-    data = request.json
-    # Register job. Don't wait for task to finish
-    job_id = webserver.tasks_runner.add_job(JobType.STATES_MEAN, data)
-    # Return associated job_id
-    return jsonify({"job_id": job_id})
 
 @webserver.route('/api/state_mean', methods=['POST'])
 def state_mean_request():
-    # Get request data
-    data = request.json
-    # Register job. Don't wait for task to finish
-    job_id = webserver.tasks_runner.add_job(JobType.STATE_MEAN, data)
-    # Return associated job_id
-    return jsonify({"job_id": job_id})
+    return handle_processing_request(request, JobType.STATE_MEAN)
+
 
 
 @webserver.route('/api/best5', methods=['POST'])
 def best5_request():
-    # Get request data
-    data = request.json
-    # Register job. Don't wait for task to finish
-    job_id = webserver.tasks_runner.add_job(JobType.BEST_5, data)
-    # Return associated job_id
-    return jsonify({"job_id": job_id})
+    return handle_processing_request(request, JobType.BEST_5)
+
 
 
 @webserver.route('/api/worst5', methods=['POST'])
 def worst5_request():
-    # Get request data
-    data = request.json
-    # Register job. Don't wait for task to finish
-    job_id = webserver.tasks_runner.add_job(JobType.WORST_5, data)
-    # Return associated job_id
-    return jsonify({"job_id": job_id})
+    return handle_processing_request(request, JobType.WORST_5)
+
 
 @webserver.route('/api/global_mean', methods=['POST'])
 def global_mean_request():
-    # Get request data
-    data = request.json
-    # Register job. Don't wait for task to finish
-    job_id = webserver.tasks_runner.add_job(JobType.GLOBAL_MEAN, data)
-    # Return associated job_id
-    return jsonify({"job_id": job_id})
+    return handle_processing_request(request, JobType.GLOBAL_MEAN)
+
 
 @webserver.route('/api/diff_from_mean', methods=['POST'])
 def diff_from_mean_request():
-    # Get request data
-    data = request.json
-    # Register job. Don't wait for task to finish
-    job_id = webserver.tasks_runner.add_job(JobType.DIFF_FROM_MEAN, data)
-    # Return associated job_id
-    return jsonify({"job_id": job_id})
+    return handle_processing_request(request, JobType.DIFF_FROM_MEAN)
+
 
 @webserver.route('/api/state_diff_from_mean', methods=['POST'])
 def state_diff_from_mean_request():
-    # Get request data
-    data = request.json
-    # Register job. Don't wait for task to finish
-    job_id = webserver.tasks_runner.add_job(JobType.STATE_DIFF_FROM_MEAN, data)
-    # Return associated job_id
-    return jsonify({"job_id": job_id})
+    return handle_processing_request(request, JobType.STATE_DIFF_FROM_MEAN)
 
 @webserver.route('/api/mean_by_category', methods=['POST'])
 def mean_by_category_request():
-    # Get request data
-    data = request.json
-    # Register job. Don't wait for task to finish
-    job_id = webserver.tasks_runner.add_job(JobType.MEAN_BY_CATEGORY, data)
-    # Return associated job_id
-    return jsonify({"job_id": job_id})
+    return handle_processing_request(request, JobType.MEAN_BY_CATEGORY)
+
 
 @webserver.route('/api/state_mean_by_category', methods=['POST'])
 def state_mean_by_category_request():
+    return handle_processing_request(request, JobType.STATE_MEAN_BY_CATEGORY)
+
+
+def handle_processing_request(request, job_type: JobType):
+    # Throw an error if '/api/graceful_shutdown' request was already made
+    with webserver.lock_is_shutting_down:
+        if webserver.is_shutting_down is True:
+            webserver.logger.log_message(f" - ERROR - Bad request: cannot accept '{job_type.value}' request after GRACEFUL SHUTDOWN!")
+            # Exit code 400 - Bad Request
+            return jsonify({"status": "error"}), 400 
+        
     # Get request data
     data = request.json
     # Register job. Don't wait for task to finish
     job_id = webserver.tasks_runner.add_job(JobType.STATE_MEAN_BY_CATEGORY, data)
     # Return associated job_id
     return jsonify({"job_id": job_id})
+
 
 
 @webserver.route('/api/graceful_shutdown', methods=['GET'])
