@@ -83,7 +83,7 @@ def handle_processing_request(request, job_type: JobType):
     # Get request data
     data = request.json
     # Register job. Don't wait for task to finish
-    job_id = webserver.tasks_runner.add_job(JobType.STATE_MEAN_BY_CATEGORY, data)
+    job_id = webserver.tasks_runner.add_job(job_type, data)
     # Return associated job_id
     return jsonify({"job_id": job_id})
 
