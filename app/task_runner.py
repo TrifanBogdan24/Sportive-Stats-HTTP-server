@@ -48,6 +48,9 @@ class ThreadPool:
         self.lock_job_counter = Lock()
         self.lock_logger = Lock()
 
+        self.lock_file_data_base = Lock()
+        self.pending_job_locks = dict()
+
         self.workers = []
 
         self.types_processing_jobs = []
@@ -78,9 +81,14 @@ class ThreadPool:
         job = {"job_id": job_id, "job_type": job_type, "request_data": request_data}
         self.job_queue.put(job)
 
+        # Add a lock on the job's file
+        with self.lock_file_data_base:
+            self.pending_job_locks[job_id] = Lock()
+
         # Write JOB's result on disk
-        with open(os.path.join("results", f"{job_id}.json"), "w") as file:
-            json.dump({"status": "running"}, file)
+        with self.pending_job_locks[job_id]:
+            with open(os.path.join("results", f"{job_id}.json"), "w") as file:
+                json.dump({"status": "running"}, file)
 
         return job_id
 
@@ -108,11 +116,16 @@ class ThreadPool:
             return jsonify({"status": "error", "reason": "Invalid job_id"}), 500
         
         try:
+            with webserver.tasks_runner.lock_file_data_base:
+                is_job_running: bool = [True if job_id in webserver.tasks_runner.pending_job_locks else False]
+
+
+            if is_job_running is True:
+                return jsonify({"status": "running"}), 200
+            
+            # JOB's result was already compute and is thread-safe to access it
             with open(file_path, "r") as file:
                 result = json.load(file)
-
-            if result.get("status") == "running":
-                return jsonify({"status": "running"}), 200
             return jsonify(result.get("data", {})), 200
         except Exception as e:
             # Internal Server Error status code
@@ -211,9 +224,14 @@ class TaskRunner(Thread):
             response_data = webserver.data_ingestor.compute_response_mean_by_category(question)
 
 
-        # Save JOB's results to disk
-        with open(os.path.join("results", f"{job_id}.json"), "w") as file:
-            json.dump({"status": "done", "data": response_data}, file)
+        with webserver.tasks_runner.lock_file_data_base:
+            # Save JOB's results to disk
+            with webserver.tasks_runner.pending_job_locks[job_id]:
+                with open(os.path.join("results", f"{job_id}.json"), "w") as file:
+                    json.dump({"status": "done", "data": response_data}, file)
+           
+            # Delete file's lock
+            webserver.tasks_runner.pending_job_locks.pop(job_id)
 
         # Write in .log file
         message = f"- INFO - Computed response for job_id={job_id} can be found at 'results/{job_id}.json'"
