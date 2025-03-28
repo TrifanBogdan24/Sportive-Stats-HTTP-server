@@ -298,6 +298,10 @@ class TaskRunner(Thread):
         elif job_type == JobType.MEAN_BY_CATEGORY:
             question: str = request_data.get("question", "")
             response_data = webserver.data_ingestor.compute_response_mean_by_category(question)
+        elif job_type == JobType.STATE_MEAN_BY_CATEGORY:
+            question: str = request_data.get("question", "")
+            state: str = request_data.get("state", "")
+            response_data = webserver.data_ingestor.compute_response_state_mean_by_category(question, state)
 
 
         with webserver.tasks_runner.lock_file_data_base:

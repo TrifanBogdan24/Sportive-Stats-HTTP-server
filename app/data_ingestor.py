@@ -295,6 +295,7 @@ class DataIngestor:
 
         return {state: diff_from_mean}
 
+
     def compute_response_mean_by_category(self, question: str) -> Dict:
         """
         Returns the response for '/api/mean_by_category' request as a JSON dictionary
@@ -369,3 +370,40 @@ class DataIngestor:
         sorted_means = dict(sorted(category_means.items(), key=custom_sort_key))
 
         return {str(k): v for k, v in sorted_means.items()}
+
+
+    def compute_response_state_mean_by_category(self, question: str, state: str) -> Dict:
+        """
+        Returns the response for '/api/state_mean_by_category' request as a JSON dictionary
+        """
+        # Select rows that match the question and the state, with valid data_value
+        selected_rows = [
+            entry for entry in self.table_entries
+            if entry.question == question and entry.location_desc == state and entry.data_value is not None
+        ]
+
+        if not selected_rows:
+            return {"error": "No data available for the given question and state"}
+
+        # Dictionary to store the total values and counts for each stratification category and stratification
+        category_totals = {}
+        category_counts = {}
+
+        for entry in selected_rows:
+            key = (entry.stratification_category1, entry.stratification1)
+
+            if key not in category_totals:
+                category_totals[key] = 0
+                category_counts[key] = 0
+
+            category_totals[key] += entry.data_value
+            category_counts[key] += 1
+
+        # Calculate the mean for each category-stratification combination
+        category_means = {
+            key: category_totals[key] / category_counts[key]
+            for key in category_totals
+        }
+
+        calculated_values = {str(k): v for k, v in category_means.items()}
+        return {state: calculated_values}
