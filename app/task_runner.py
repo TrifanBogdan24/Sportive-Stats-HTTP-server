@@ -193,6 +193,37 @@ class ThreadPool:
         message = "- INFO - Server stopped"
         webserver.logger.log_message(message)
 
+    def get_all_jobs_status(self) -> Dict:
+        """
+        Returns the response for 'GET /api/jobs' request as a JSON dictionary
+
+        Returns the status of all jobs that have been created
+        up until the time the function was called.
+        """
+        from app import webserver
+
+        response = {
+            "status": "done",
+            "data": []
+        }
+
+        num_total_jobs = 0
+        with self.lock_job_counter:
+            num_total_jobs = webserver.job_counter
+        with self.lock_file_data_base:
+            for job_id in range(1, num_total_jobs + 1):
+                file_path = os.path.join('results', f'{job_id}.json')
+
+                if not os.path.exists(file_path):
+                    continue 
+                with open(file_path, 'r', encoding='utf-8') as file:
+                    data = json.load(file)
+                    state = data.get('status')
+                    response["data"].append({f"job_id_{job_id}": state})
+
+        return response
+
+
 
 
 

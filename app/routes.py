@@ -119,8 +119,7 @@ def graceful_shutdown():
 @webserver.route('/api/jobs', methods=['GET'])
 def get_all_jobs():
     """Handle the HTTP 'GET /api/jobs' request"""
-    # TODO: implement it
-    return jsonify({'status': 'Not Implemented Yet'})
+    return jsonify(webserver.tasks_runner.get_all_jobs_status())
 
 @webserver.route('/api/num_jobs', methods=['GET'])
 def get_num_jobs():
