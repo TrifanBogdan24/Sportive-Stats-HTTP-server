@@ -126,10 +126,10 @@ Aceasta metoda `log_message()` este apelata:
     - Tipul metodei HTTP (`POST`/`GET`)
     - Endpoint-ul accesat
     - Payload-ul JSON (daca request-ul este de tip `POST`)
-    - Status code-ul pe care server-ul l-a returnat
-    - Payload-ul JSON din response (in cazul request-urile de tip `POST` pentru a afisa `job_id`-ul)
+    - In cazul request-urile de tip `POST`, se va afisa `job_id`-ul
 - Cand se primesc request-uri de procesare dupa ce s-a primit `GET /api/graceful_shutdown`:
     mesajul scris va fi unul de eroare
 - Cand thread-urile au fost oprite in urma request-ului de `shutdown`
+- Cand un rezultat a fost calculat pentru un request de procesare a datelor
 
 <!-- TODO: continua descrierea -->

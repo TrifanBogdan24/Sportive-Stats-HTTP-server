@@ -4,6 +4,8 @@ import os
 import json
 
 from typing import Dict
+from contextlib import nullcontext
+
 
 from app.job_type import JobType
 from app.conurrent_hash_map import ConcurrentHashMap
@@ -56,10 +58,10 @@ class ThreadPool:
             worker.start()
             self.workers.append(worker)
 
-        webserver.logger.log_message(f" - INFO - Server started with {self.num_threads} threads")
+        webserver.logger.log_message(f"- INFO - Server started with {self.num_threads} threads")
 
 
-    def add_job(self, job_type: JobType, request_data: Dict):
+    def add_job(self, job_type: JobType, request_data: Dict, ip_addr: str):
         """Inserts the job in the server's Queue"""
         from app import webserver
 
@@ -70,11 +72,10 @@ class ThreadPool:
             webserver.job_counter += 1
 
         # Write in .log file
-        message = (
-            "- INFO - Received request: job_id={job_id}, ",
-            f"job_type={job_type.value}, ",
-            f"request_data={request_data}"
-        )
+        message = \
+            f"- INFO - Received 'POST {job_type.value}' request from {ip_addr}. " \
+            f"Sucessfully created job_id={job_id} " \
+            f"for request_data={request_data}"
         webserver.logger.log_message(message)
 
         # Create new JOB
@@ -92,12 +93,13 @@ class ThreadPool:
         return job_id
 
 
-    def get_job_result(self, job_id: int):
+    def get_job_result(self, job_id: int, ip_addr: str):
         """
         Returns the JSON response for 'GET /api/get_results/<job_id>' request
         by reading job's data from the disk
         """
         from app import webserver
+
 
         num_jobs = 0
         with self.lock_job_counter:
@@ -105,19 +107,21 @@ class ThreadPool:
 
         if job_id < 1 or job_id > num_jobs:
             # Bad Request status code
-            message = f"- ERROR - Invalid job_id \'{job_id}\'! It is outside of range."
+            message = \
+                f"- ERROR - Received bad request 'GET api/get_results/{job_id}' from {ip_addr}. " \
+                f"Invalid job_id \'{job_id}\'! It is outside of range."
             webserver.logger.log_message(message)
             return jsonify({"status": "error", "reason": "Invalid job_id"}), 400
 
 
         file_path = f"results/{job_id}.json"
 
-        if not os.path.exists(file_path):
+        if not os.path.isfile(file_path):
             # Not Found status code
-            message = (
-                f"- ERROR - Result file for job_id='{job_id}', ",
-                f"expected to be at {file_path}, DOES NOT EXIST"
-            )
+            message = \
+                f"- ERROR - Received 'GET api/get_results/{job_id}' request from {ip_addr}. " \
+                f"Result file for job_id='{job_id}', " \
+                f"expected to be at '{file_path}', but DOES NOT EXIST!"
             webserver.logger.log_message(message)
             return jsonify({"status": "error", "reason": "Invalid job_id"}), 500
 
@@ -130,12 +134,19 @@ class ThreadPool:
 
         # JOB's result was already compute and is thread-safe to access it
         try:
+            message = \
+                f"- INFO - Received 'GET api/get_results/{job_id}' request from {ip_addr}. " \
+                "Server responded with requested data and 200 exit code."
+            webserver.logger.log_message(message)
+
             with open(file_path, "r", encoding="utf-8") as file:
                 result = json.load(file)
             return jsonify(result), 200
         except (FileNotFoundError, PermissionError, json.JSONDecodeError):
             # Internal Server Error status code
-            message = f"- ERROR - Failed to read data for job_id='{job_id}'"
+            message = \
+                f"- ERROR - Received 'GET api/get_results/{job_id}' request from {ip_addr}. " \
+                f"Internal Server Error: failed to read data for job_id='{job_id}'"
             webserver.logger.log_message(message)
             return jsonify({"status": "error", "reason": "Invalid job_id"}), 500
 
@@ -144,22 +155,29 @@ class ThreadPool:
         with self.lock_job_counter:
             return self.job_queue.qsize()
 
-    def graceful_shutdown(self):
+    def graceful_shutdown(self, ip_addr: str) -> Dict:
         """
-        Waits for all workers to finish their tasks
-        and stops them
+        Waits for all workers to finish their tasks and stops them
         """
         from app import webserver
 
-        message = "- INFO - Received '/api/graceful_shutdown' request"
-        webserver.logger.log_message(message)
-
         with webserver.lock_is_shutting_down:
             if webserver.is_shutting_down:
-                return
+                # Custom message if the shut_down requests is made multiple
+                response = {"status": "done", "reason": "already shut down"}
+
+                message = \
+                    f"- INFO - Received request 'GET /api/graceful_shutdown' from {ip_addr}. " \
+                    f"Server responded with {response} and 200 exit code." 
+                webserver.logger.log_message(message)
+            
+                return response
             webserver.is_shutting_down = True
 
-        message = f"- INFO - Number of workers thread to join = {len(self.workers)}"
+        message = f"- INFO - Received 'GET /api/graceful_shutdown' request from {ip_addr}."
+        webserver.logger.log_message(message)
+
+        message = f"- INFO - Number of worker threads to join = {len(self.workers)}"
         webserver.logger.log_message(message)
 
         self.shutdown_event.set()  # Signal all workers to stop
@@ -175,8 +193,9 @@ class ThreadPool:
             webserver.logger.log_message(message)
             worker.join()  # Make sure every thread finishes
 
-        message = "- INFO - Server stopped"
+        message = "- INFO - Server stopped the Thread Pool"
         webserver.logger.log_message(message)
+        return {'status': 'done'}
 
     def get_all_jobs_status(self) -> Dict:
         """
@@ -201,7 +220,10 @@ class ThreadPool:
             if not os.path.isfile(file_path):
                 continue
             
-            with self.file_data_base.get(job_id):
+
+            file_lock = webserver.tasks_runner.file_data_base.get(job_id)
+
+            with (file_lock if file_lock else nullcontext()):
                 with open(file_path, 'r', encoding='utf-8') as file:
                     data = json.load(file)
                     state = data.get('status')
@@ -298,8 +320,7 @@ class TaskRunner(Thread):
         webserver.tasks_runner.file_data_base.delete(job_id)
 
         # Write in .log file
-        message = (
-            f"- INFO - Computed response for job_id={job_id} ",
-            "can be found at 'results/{job_id}.json'"
-        )
+        message = \
+            f"- INFO - Computed response for job_id={job_id} " \
+            f"can be found at 'results/{job_id}.json'"
         webserver.logger.log_message(message)

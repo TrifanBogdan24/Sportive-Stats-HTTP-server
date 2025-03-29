@@ -12,26 +12,27 @@ def get_job_result(job_id: str):
 
 
     job_id_integer: int = 0
+    ip_addr: str = request.remote_addr
 
     try:
         job_id_integer = int(job_id)
     except ValueError:
-        message = (
-            f"- ERROR - Invalid job_id \'{job_id}\'! "
+        message = \
+            f"- ERROR - Received bad request 'GET api/get_results/{job_id}' from {ip_addr}. " \
+            f"Invalid job_id \'{job_id}\'! " \
             "It must be a positive integer, greater than 0!"
-        )
         webserver.logger.log_message(message)
         return jsonify({"status": "error", "reason": "Invalid job_id"}), 400
 
     if job_id_integer <= 0:
-        message = (
-            f"- ERROR - Invalid job_id \'{job_id}\'! "
+        message = \
+            f"- ERROR - Received bad request 'GET api/get_results/{job_id}' from {ip_addr}. " \
+            f"Invalid job_id \'{job_id}\'! " \
             "It must be a positive integer, greater than 0!"
-        )
         webserver.logger.log_message(message)
         return jsonify({"status": "error", "reason": "Invalid job_id"}), 400
 
-    return webserver.tasks_runner.get_job_result(job_id_integer)
+    return webserver.tasks_runner.get_job_result(job_id_integer, ip_addr)
 
 @webserver.route('/api/states_mean', methods=['POST'])
 def states_mean_request():
@@ -94,17 +95,22 @@ def handle_processing_request(req, job_type: JobType):
     # Throw an error if '/api/graceful_shutdown' request was already made
     with webserver.lock_is_shutting_down:
         if webserver.is_shutting_down is True:
-            webserver.logger.log_message(
-                " - ERROR - Bad request: cannot accept "
-                    + f"'{job_type.value}' request after GRACEFUL SHUTDOWN!"
-            )
-            # Exit code 400 - Bad Request
-            return jsonify({"status": "error", "reason": "shutting down"}), 400
+            # Cannot accept requests for processing data after after shutdown
+            response = {"status": "error", "reason": "shutting down"}
+
+            message = \
+                f"- ERROR - Received bad request 'POST {job_type.value}' from {request.remote_addr}. " \
+                f"Server responded with {response} and 400 exit code."
+            
+
+            webserver.logger.log_message(message)
+            return jsonify(response), 400
 
     # Get request data
     data = req.json
+    ip_addr = req.remote_addr
     # Register job. Don't wait for task to finish
-    job_id = webserver.tasks_runner.add_job(job_type, data)
+    job_id = webserver.tasks_runner.add_job(job_type, data, ip_addr)
     # Return associated job_id
     return jsonify({"job_id": job_id})
 
@@ -113,8 +119,9 @@ def handle_processing_request(req, job_type: JobType):
 @webserver.route('/api/graceful_shutdown', methods=['GET'])
 def graceful_shutdown():
     """Handle the HTTP 'GET /api/graceful_shutdown' request"""
-    webserver.tasks_runner.graceful_shutdown()
-    return jsonify({'status': 'done'})
+    ip_addr: str = request.remote_addr
+    response = webserver.tasks_runner.graceful_shutdown(ip_addr)
+    return jsonify(response)
 
 @webserver.route('/api/jobs', methods=['GET'])
 def get_all_jobs():
@@ -125,7 +132,14 @@ def get_all_jobs():
 def get_num_jobs():
     """Handle the HTTP 'GET /api/num_jobs' request"""
     num_jobs = webserver.tasks_runner.get_num_pending_jobs()
-    return jsonify({'num_pending_job': f'{num_jobs}'})
+    response = {'num_pending_job': f'{num_jobs}'}
+
+    message = \
+        f"- INFO - Received 'GET api/num_jobs' request from {request.remote_addr}. "\
+        f"Server responded with: {response}"
+    webserver.logger.log_message(message)
+
+    return jsonify(response)
 
 
 
