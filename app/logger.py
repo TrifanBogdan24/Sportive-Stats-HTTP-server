@@ -5,6 +5,7 @@ from logging.handlers import RotatingFileHandler
 import os
 import time
 from threading import Lock
+from app.job_type import JobType
 
 class Logger:
     """
