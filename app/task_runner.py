@@ -6,6 +6,7 @@ import json
 from typing import Dict
 
 from app.job_type import JobType
+from app.conurrent_hash_map import ConcurrentHashMap
 
 from flask import jsonify
 
@@ -43,8 +44,8 @@ class ThreadPool:
         self.lock_job_counter = Lock()
         self.lock_logger = Lock()
 
-        self.lock_file_data_base = Lock()
-        self.pending_job_locks = {}
+
+        self.file_data_base = ConcurrentHashMap()
 
         self.workers = []
 
@@ -81,11 +82,10 @@ class ThreadPool:
         self.job_queue.put(job)
 
         # Add a lock on the job's file
-        with self.lock_file_data_base:
-            self.pending_job_locks[job_id] = Lock()
+        self.file_data_base.add(job_id, Lock())
 
         # Write JOB's result on disk
-        with self.pending_job_locks[job_id]:
+        with self.file_data_base.get(job_id):
             with open(os.path.join("results", f"{job_id}.json"), "w", encoding="utf-8") as file:
                 json.dump({"status": "running"}, file)
 
@@ -121,9 +121,8 @@ class ThreadPool:
             webserver.logger.log_message(message)
             return jsonify({"status": "error", "reason": "Invalid job_id"}), 500
 
-        with webserver.tasks_runner.lock_file_data_base:
-            # Equivalent to a ternary if-else
-            is_job_running: bool = job_id in webserver.tasks_runner.pending_job_locks
+
+        is_job_running: bool = self.file_data_base.contains(job_id)
 
 
         if is_job_running is True:
@@ -196,12 +195,13 @@ class ThreadPool:
         num_total_jobs = 0
         with self.lock_job_counter:
             num_total_jobs = webserver.job_counter
-        with self.lock_file_data_base:
-            for job_id in range(1, num_total_jobs + 1):
-                file_path = os.path.join('results', f'{job_id}.json')
+        for job_id in range(1, num_total_jobs + 1):
+            file_path = os.path.join('results', f'{job_id}.json')
 
-                if not os.path.exists(file_path):
-                    continue 
+            if not os.path.isfile(file_path):
+                continue
+            
+            with self.file_data_base.get(job_id):
                 with open(file_path, 'r', encoding='utf-8') as file:
                     data = json.load(file)
                     state = data.get('status')
@@ -289,15 +289,13 @@ class TaskRunner(Thread):
             state: str = request_data.get("state", "")
             response_data = webserver.data_ingestor.compute_response_state_mean_by_category(question, state)
 
+        # Save JOB's results to disk
+        with webserver.tasks_runner.file_data_base.get(job_id):
+            with open(os.path.join("results", f"{job_id}.json"), "w", encoding="utf-8") as file:
+                json.dump({"status": "done", "data": response_data}, file)
 
-        with webserver.tasks_runner.lock_file_data_base:
-            # Save JOB's results to disk
-            with webserver.tasks_runner.pending_job_locks[job_id]:
-                with open(os.path.join("results", f"{job_id}.json"), "w", encoding="utf-8") as file:
-                    json.dump({"status": "done", "data": response_data}, file)
-
-            # Delete file's lock
-            webserver.tasks_runner.pending_job_locks.pop(job_id)
+        # Delete file's lock
+        webserver.tasks_runner.file_data_base.delete(job_id)
 
         # Write in .log file
         message = (
