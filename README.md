@@ -59,7 +59,7 @@ ce a dus la procesarea a maxim 1 request pe secunda.
 > ⚙️ Este si asta o tehnica de debug.
 
 
-## 📋 Data Ingestor: CSV processing
+##  Data Ingestor: CSV processing
 
 La pornirea server-ului se citeste fisierul **CSV**
 si se incarca in memorie doar coloanele de interes,
