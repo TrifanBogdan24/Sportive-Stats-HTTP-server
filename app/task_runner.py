@@ -152,8 +152,7 @@ class ThreadPool:
 
     def get_num_pending_jobs(self):
         """Returns queue's size (the number of jobs that haven't been processed yet)"""
-        with self.lock_job_counter:
-            return self.job_queue.qsize()
+        return self.job_queue.qsize()
 
     def graceful_shutdown(self, ip_addr: str) -> Dict:
         """
@@ -182,10 +181,8 @@ class ThreadPool:
 
         self.shutdown_event.set()  # Signal all workers to stop
 
-        # Add None to the queue for each worker (to unblock them)
-        for _ in range(len(self.workers)):
-            self.job_queue.put(None)
-
+        # Wait for all jobs to be processed
+        self.job_queue.join()
 
         # Wait for all workers to exit
         for tid, worker in enumerate(self.workers):
@@ -256,11 +253,10 @@ class TaskRunner(Thread):
         """
         from app import webserver
 
-        while not self.shutdown_event.is_set():  # Check if shutdown event is set
+        while not self.shutdown_event.is_set() or not self.job_queue.empty():
             try:
-                job = self.job_queue.get(timeout=1)  # Wait for 1 second for a job
-                if job is None:  # None indicates shutdown request
-                    break  # Break the loop and terminate the worker
+                # Using timeout=1 to avoid blocking indefinitely
+                job = self.job_queue.get(timeout=1)
                 self._process_job(job)
                 self.job_queue.task_done()
             except Exception:

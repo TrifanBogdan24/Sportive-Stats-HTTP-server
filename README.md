@@ -55,7 +55,9 @@ in cazul de fata, procesarea mai multor request-uri HTTP in acelasi timp de catr
 
 Acest **desgin pattern** presupune implementarea a doua componenta principale:
 1. Un **pool** de task-uri de executat, reprezentat de o **coada**
+    - > Structura `Queue()` din Python ofera, by default, operatii **thread-safe**
 2. Un grup de **workeri** (**thread**-uri)
+
 
 Numarul de thread-uri create va fi extras dintr-o variabila de mediu,
 in absenta careia se vor initializa atatea thread-uri cate core-uri are procesorul.
@@ -64,7 +66,24 @@ in absenta careia se vor initializa atatea thread-uri cate core-uri are procesor
 num_threads = int(os.getenv("TP_NUM_OF_THREADS", os.cpu_count()))
 ```
 
-<!-- TODO: continua descrierea -->
+
+**Thread Pool**-ul se ocupa cu gestiunea in **paralel** a request-urilor de procesare de date,
+apeland metodele corespunzatoare din clasa `DataIngestor`
+celelalte cereri la server fiind executate **secvential**.
+
+
+## ⏻  Oprirea Thread Pool-ului
+
+
+Pentru tratarea request-ului `GET /api/graceful_shutdown`,
+am definit un `Event()` la nivelul instantei clasei `ThreadPool`,
+care este activat la primirea acestei cereri HTTP,
+declansand astfel oprirea thread-urilor dupa ce toate request-urile de procesare de date au fost rezolvate.
+
+Thread-urile ruleaza intr-o bucla infinita atata timp cat:
+- coada mai contine task-uri de procesat
+- sau `Event()`-ul nu este activat
+
 
 
 
