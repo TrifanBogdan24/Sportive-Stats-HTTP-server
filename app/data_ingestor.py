@@ -305,13 +305,18 @@ class DataIngestor:
             if entry.question == question and entry.data_value is not None
         ]
 
+        # Dacă nu sunt date disponibile, returnăm un JSON vid
         if not selected_rows:
-            return {"error": "No data available for the given question"}
+            return {}
 
         category_totals = {}
         category_counts = {}
 
         for entry in selected_rows:
+            # Exclude entries with empty or invalid stratification categories
+            if not entry.stratification_category1 or not entry.stratification1:
+                continue
+
             key = (entry.location_desc, entry.stratification_category1, entry.stratification1)
 
             if key not in category_totals:
@@ -321,10 +326,10 @@ class DataIngestor:
             category_totals[key] += entry.data_value
             category_counts[key] += 1
 
-            category_means = {
-                key: total / category_counts[key] for key, total in category_totals.items()
-            }
-
+        # Calculăm media pentru fiecare categorie
+        category_means = {
+            key: total / category_counts[key] for key, total in category_totals.items()
+        }
 
         # Sorting order
         category_priority = {
@@ -370,6 +375,7 @@ class DataIngestor:
         sorted_means = dict(sorted(category_means.items(), key=custom_sort_key))
 
         return {str(k): v for k, v in sorted_means.items()}
+
 
 
     def compute_response_state_mean_by_category(self, question: str, state: str) -> Dict:
