@@ -42,7 +42,13 @@ La pornirea server-ului se citeste fisierul **CSV**
 si se incarca in memorie doar coloanele de interes,
 in functie de care se va realiza selectia ulterioara a datelor.
 
-<!-- TODO: continua descrierea -->
+Instanta clasei `DataIngestor` furnizeaza metode care,
+filtrand liniile tabelului in functie de **question** si **state**,
+afectueaza diverse **operatii statistice** asupra acestora
+(e.g.: medie, deviatie de la medie, cele mai bune/slabe intrari)
+si intoarce un JSON sub forma unui dictionar.
+
+Tratarea cererilor HTTP pentru procesari de date presupune apelarea acestor metode.
 
 
 ## 🧵 Thread Pool
@@ -69,7 +75,7 @@ num_threads = int(os.getenv("TP_NUM_OF_THREADS", os.cpu_count()))
 
 **Thread Pool**-ul se ocupa cu gestiunea in **paralel** a request-urilor de procesare de date,
 apeland metodele corespunzatoare din clasa `DataIngestor`
-celelalte cereri la server fiind executate **secvential**.
+(celelalte cereri la server fiind executate **secvential**).
 
 
 ## ⏻  Oprirea Thread Pool-ului
