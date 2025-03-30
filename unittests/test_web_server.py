@@ -1,6 +1,6 @@
 import unittest
 
-
+from app.data_ingestor import DataIngestor  
 
 class TestWebServer(unittest.TestCase):
     def test_upper(self):

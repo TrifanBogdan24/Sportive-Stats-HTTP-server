@@ -10,13 +10,7 @@ class TableEntry:
     def __init__(self, index: int, row: list[str]):
         """Initialize a TableEntry instance by providing a row and its index"""
         self.index = index
-        self.year_start = int(row[1])
-        self.year_end = int(row[2])
-        self.location_abbr = row[3]
         self.location_desc = row[4]
-        self.datasource = row[5]
-        self.classification = row[6]
-        self.topic = row[7]
         self.question = row[8]
         self.data_value = float(row[11]) if row[11] else None
         self.stratification_category1 = row[30]
