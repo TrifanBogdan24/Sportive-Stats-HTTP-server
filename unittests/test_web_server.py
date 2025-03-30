@@ -4,16 +4,23 @@ import os
 from deepdiff import DeepDiff
 from app.data_ingestor import DataIngestor
 
-CSV_FILE_FOR_QUERIES_ON_QUESTION = 'unittests/sample_data_multiple_states.csv'
-
-test_categories = [
+# Constants For queries only on the 'question'
+test_categories_1 = [
     "states_mean", "best5", "worst5", "global_mean", "diff_from_mean", "mean_by_category"
 ]
 
+# Constants For queries only on both the 'question' and 'state'
+test_categories_2 = [
+    "state_mean", "state_diff_from_mean", "state_mean_by_category"
+]
+
+all_test_categories = test_categories_1 + test_categories_2
+
+
 def discover_test_cases():
-    """Dynamically discovers input/output test cases for each category."""
+    """Dynamically discovers input/output test cases for each category"""
     test_cases = []
-    for category in test_categories:
+    for category in all_test_categories :
         input_dir = f'unittests/tests/{category}/input'
         output_dir = f'unittests/tests/{category}/output'
         
@@ -27,7 +34,7 @@ def discover_test_cases():
     return test_cases
 
 def add_dynamic_tests(test_class):
-    """Dynamically adds test methods for each discovered test case."""
+    """Dynamically adds test methods for each discovered test case"""
     for idx, (category, input_file, output_file) in enumerate(discover_test_cases()):
         def test_func(self, cat=category, in_f=input_file, out_f=output_file):
             self._run_test_case(cat, in_f, out_f)
@@ -35,18 +42,22 @@ def add_dynamic_tests(test_class):
 
 class TestWebServer(unittest.TestCase):
     def setUp(self):
-        self.data_ingestor_1 = DataIngestor(CSV_FILE_FOR_QUERIES_ON_QUESTION)
+        self.data_ingestor_1 = DataIngestor('unittests/data_for_queries_on_question.csv')
+        self.data_ingestor_2 = DataIngestor('unittests/data_for_queries_on_question_and_state.csv')
         self.function_map = {
             "states_mean": self.data_ingestor_1.compute_response_states_mean,
             "best5": self.data_ingestor_1.compute_response_best5,
             "worst5": self.data_ingestor_1.compute_response_worst5,
             "global_mean": self.data_ingestor_1.compute_response_global_mean,
             "diff_from_mean": self.data_ingestor_1.compute_response_diff_from_mean,
-            "mean_by_category": self.data_ingestor_1.compute_response_mean_by_category
+            "mean_by_category": self.data_ingestor_1.compute_response_mean_by_category,
+            "state_mean": self.data_ingestor_2.compute_response_state_mean,
+            "state_diff_from_mean": self.data_ingestor_2.compute_response_state_diff_from_mean,
+            "state_mean_by_category": self.data_ingestor_2.compute_response_state_mean_by_category
         }
 
-    def _run_test_case(self, category, input_file, output_file, state=None):
-        """Helper function to run a single test case."""
+    def _run_test_case(self, category, input_file, output_file):
+        """Helper function to run a single test case"""
         print(f"Running test: {category} with {input_file}")
         with open(input_file) as f:
             request_data = json.load(f)
@@ -55,9 +66,13 @@ class TestWebServer(unittest.TestCase):
         with open(output_file) as f:
             expected_output = json.load(f)
 
-        function = self.function_map[category]
+        function = self.function_map[category] 
 
-        result = function(question) if state is None else function(question, state)
+        if category in test_categories_2:
+            state = request_data.get("state")
+            result = function(question, state)
+        else:
+            result = function(question)
 
         diff = DeepDiff(result, expected_output, math_epsilon=0.01)
         self.assertTrue(diff == {}, str(diff))
