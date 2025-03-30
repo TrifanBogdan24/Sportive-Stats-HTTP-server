@@ -18,7 +18,7 @@ class Logger:
     def __init__(self):
         self._delete_old_logs()
         self.log_formatter = logging.Formatter('%(message)s')
-        # A backup of max. 10+1 files of max. 11 MB
+        # A backup of max. 10+1 files of max. 10 MB
         self.log_handler = RotatingFileHandler(
             "webserver.log",
             maxBytes=10*1024*1024, backupCount=10

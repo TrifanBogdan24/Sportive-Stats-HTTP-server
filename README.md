@@ -2,6 +2,11 @@
 
 > Tema 1 ASC - Trifan Bogdan-Cristian, 331CD
 
+> Link repository: <https://github.com/TrifanBogdan24/Sportive-Stats-HTTP-server.git> 
+
+> Am implementat intreg enuntul temei, mai putin testele unitare.
+
+
 In cadrul acestei teme, am implementat back-end-ul unui server HTTP
 capabil sa proceseze simultan mai multe reqeust-uri in acelasi timp,
 datorita faptului ca am folosit design pattern-ul **Replicated Workers** (numit si **Thread Pool**)
@@ -34,6 +39,24 @@ Metode pentru **controlul serverului/server info**:
 | `GET` | `http://127.0.0.1:5000//api/get_results/<job_id>` |
 
 > `<job_id>` este un *placeholder*: in locul sau se va trece un numar intreg
+
+## 📬Postman/🦊Restfox
+
+Un lucru cu adevarat interesant pe care l-am invatat la aceasta tema
+este cum sa-mi testez **API**-ul construit
+(o situatie reala la un posibil viitor loc de munca 🤓).
+
+Pe langa checker, am ales sa folosesc o metoda mai ne-programatica de **testare**:
+am trimis cereri HTTP din **Postman** (sau **Restfox**, alternativa mai lightweight)
+pentru a observa mai in detaliu raspunsurile serverului, comportamentul bazei de date de pe disc
+si activitatea de **logging**.
+
+Sincer, daca nu as fi rulat request-urile mai intai secvential din **Restfox**,
+nu mi-as fi dat seama ca thread-urile intra in **dead-lock**
+sau ca am gestionat gresit `mutex`-urile de pe fisiere, 
+ce a dus la procesarea a maxim 1 request pe secunda.
+
+> ⚙️ Este si asta o tehnica de debug.
 
 
 ## 📋 Data Ingestor: CSV processing
@@ -131,7 +154,7 @@ sa fie cel mult egal cu numarul de thread-uri.
 ## 🪵 Logging server's activity
 
 Pentru a pastra un istoric **persistent la restart** al serverului,
-am inregistrat activitatea in fisiere `*.log`, stocate pe disc.
+am inregistrat activitatea in fisiere `webserver.log`, stocate pe disc.
 
 > ⚠️ **ATENTIE!** Pornirea serverului presupune resetarea activitatii de logging,
 > ceea ce inseamna ca **fisierele** de monitorizare **vor fi sterse**.
@@ -157,4 +180,17 @@ Aceasta metoda `log_message()` este apelata:
 - Cand thread-urile au fost oprite in urma request-ului de `shutdown`
 - Cand un rezultat a fost calculat pentru un request de procesare a datelor
 
-<!-- TODO: continua descrierea -->
+
+### 🗂️ Rotating file handler
+
+In loc sa scriu toata activitatea de **logging** intr-un singur fisier mare,
+folosesc `RotatingFileHandler` pentru a impune o limita superioara.
+Cand `webserver.log` ajunge la dimensiunea de **10MB**, 
+acesta se va redenumi in `webserer.log.1`, `.2` pana la `.10`.
+
+```py
+log_handler = RotatingFileHandler(
+    "webserver.log",
+    maxBytes=10*1024*1024, backupCount=10
+)
+```
