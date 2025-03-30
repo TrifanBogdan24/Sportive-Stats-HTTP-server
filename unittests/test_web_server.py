@@ -1,124 +1,70 @@
 import unittest
 import json
+import os
 from deepdiff import DeepDiff
-
 from app.data_ingestor import DataIngestor
 
+CSV_FILE_FOR_QUERIES_ON_QUESTION = 'unittests/sample_data_multiple_states.csv'
 
-CSV_FILE_FOR_QUERIES_ON_QEUSTION = 'unittests/sample_data_multiple_states.csv'
-DATA_FILE_QUERIES_ON_QEUSTION_AND_STATE = 'unittests/sample_data_multiple_states.csv'
+test_categories = [
+    "states_mean", "best5", "worst5", "global_mean", "diff_from_mean", "mean_by_category"
+]
+
+def discover_test_cases():
+    """Dynamically discovers input/output test cases for each category."""
+    test_cases = []
+    for category in test_categories:
+        input_dir = f'unittests/tests/{category}/input'
+        output_dir = f'unittests/tests/{category}/output'
+        
+        if os.path.exists(input_dir) and os.path.isdir(input_dir):
+            for input_file in sorted(os.listdir(input_dir)):
+                if input_file.endswith('.json'):
+                    input_path = os.path.join(input_dir, input_file)
+                    output_path = os.path.join(output_dir, input_file.replace('in-', 'out-'))
+                    if os.path.exists(output_path):
+                        test_cases.append((category, input_path, output_path))
+    return test_cases
+
+def add_dynamic_tests(test_class):
+    """Dynamically adds test methods for each discovered test case."""
+    for idx, (category, input_file, output_file) in enumerate(discover_test_cases()):
+        def test_func(self, cat=category, in_f=input_file, out_f=output_file):
+            self._run_test_case(cat, in_f, out_f)
+        setattr(test_class, f'test_{category}_{idx+1}', test_func)
 
 class TestWebServer(unittest.TestCase):
-    def test_states_mean_case_1(self):
-        data_ingestor = DataIngestor(CSV_FILE_FOR_QUERIES_ON_QEUSTION)
-        self._test_function_that_queries_just_question(
-            data_ingestor.compute_response_states_mean, 
-            'unittests/tests/states_mean/input/in-1.json', 
-            'unittests/tests/states_mean/output/out-1.json')
+    def setUp(self):
+        self.data_ingestor_1 = DataIngestor(CSV_FILE_FOR_QUERIES_ON_QUESTION)
+        self.function_map = {
+            "states_mean": self.data_ingestor_1.compute_response_states_mean,
+            "best5": self.data_ingestor_1.compute_response_best5,
+            "worst5": self.data_ingestor_1.compute_response_worst5,
+            "global_mean": self.data_ingestor_1.compute_response_global_mean,
+            "diff_from_mean": self.data_ingestor_1.compute_response_diff_from_mean,
+            "mean_by_category": self.data_ingestor_1.compute_response_mean_by_category
+        }
 
-    def test_states_mean_case_2(self):
-        data_ingestor = DataIngestor(CSV_FILE_FOR_QUERIES_ON_QEUSTION)
-        self._test_function_that_queries_just_question(
-            data_ingestor.compute_response_states_mean, 
-            'unittests/tests/states_mean/input/in-2.json', 
-            'unittests/tests/states_mean/output/out-2.json')
+    def _run_test_case(self, category, input_file, output_file, state=None):
+        """Helper function to run a single test case."""
+        print(f"Running test: {category} with {input_file}")
+        with open(input_file) as f:
+            request_data = json.load(f)
+        question = request_data.get("question")
 
+        with open(output_file) as f:
+            expected_output = json.load(f)
 
-    def test_best5_case_1(self):
-        data_ingestor = DataIngestor(CSV_FILE_FOR_QUERIES_ON_QEUSTION)
-        self._test_function_that_queries_just_question(
-            data_ingestor.compute_response_best5, 
-            'unittests/tests/best5/input/in-1.json', 
-            'unittests/tests/best5/output/out-1.json')
+        function = self.function_map[category]
 
-    def test_best5_case_2(self):
-        data_ingestor = DataIngestor(CSV_FILE_FOR_QUERIES_ON_QEUSTION)
-        self._test_function_that_queries_just_question(
-            data_ingestor.compute_response_best5, 
-            'unittests/tests/best5/input/in-2.json', 
-            'unittests/tests/best5/output/out-2.json')
+        result = function(question) if state is None else function(question, state)
 
-    def test_worst5_case_1(self):
-        data_ingestor = DataIngestor(CSV_FILE_FOR_QUERIES_ON_QEUSTION)
-        self._test_function_that_queries_just_question(
-            data_ingestor.compute_response_worst5, 
-            'unittests/tests/best5/input/in-1.json', 
-            'unittests/tests/best5/output/out-1.json')
-
-    def test_worst5_case_2(self):
-        data_ingestor = DataIngestor(CSV_FILE_FOR_QUERIES_ON_QEUSTION)
-        self._test_function_that_queries_just_question(
-            data_ingestor.compute_response_worst5, 
-            'unittests/tests/best5/input/in-2.json', 
-            'unittests/tests/best5/output/out-2.json')
-
-    def test_global_mean_case_1(self):
-        data_ingestor = DataIngestor(CSV_FILE_FOR_QUERIES_ON_QEUSTION)
-        self._test_function_that_queries_just_question(
-            data_ingestor.compute_response_global_mean, 
-            'unittests/tests/global_mean/input/in-1.json', 
-            'unittests/tests/global_mean/output/out-1.json')
-
-    def test_global_mean_case_2(self):
-        data_ingestor = DataIngestor(CSV_FILE_FOR_QUERIES_ON_QEUSTION)
-        self._test_function_that_queries_just_question(
-            data_ingestor.compute_response_global_mean, 
-            'unittests/tests/global_mean/input/in-2.json', 
-            'unittests/tests/global_mean/output/out-2.json')
-
-
-    def test_diff_from_mean_case_1(self):
-        data_ingestor = DataIngestor(CSV_FILE_FOR_QUERIES_ON_QEUSTION)
-
-        self._test_function_that_queries_just_question(
-            data_ingestor.compute_response_diff_from_mean, 
-            'unittests/tests/diff_from_mean/input/in-1.json', 
-            'unittests/tests/diff_from_mean/output/out-1.json')
-
-    def test_diff_from_mean_case_2(self):
-        data_ingestor = DataIngestor(CSV_FILE_FOR_QUERIES_ON_QEUSTION)
-        self._test_function_that_queries_just_question(
-            data_ingestor.compute_response_diff_from_mean, 
-            'unittests/tests/diff_from_mean/input/in-2.json', 
-            'unittests/tests/diff_from_mean/output/out-2.json')
-
-
-    def test_mean_by_category_case_1(self):
-        data_ingestor = DataIngestor(CSV_FILE_FOR_QUERIES_ON_QEUSTION)
-        self._test_function_that_queries_just_question(
-            data_ingestor.compute_response_mean_by_category,
-            'unittests/tests/mean_by_category/input/in-1.json', 
-            'unittests/tests/mean_by_category/output/out-1.json')
-
-    def test_mean_by_category_case_2(self):
-        data_ingestor = DataIngestor(CSV_FILE_FOR_QUERIES_ON_QEUSTION)
-        self._test_function_that_queries_just_question(
-            data_ingestor.compute_response_mean_by_category,
-            'unittests/tests/mean_by_category/input/in-2.json', 
-            'unittests/tests/mean_by_category/output/out-2.json')
-
-    
-    def _test_function_that_queries_just_question(self, function, input_file, output_file):
-        """
-        Helper method to perform the test logic for computing the mean_by_category
-        It is reusable across multiple test cases with different file paths.
-        """
-
-        # Load input JSON data
-        with open(input_file) as file:
-            request_data = json.load(file)
-        question = request_data["question"]
-        
-        # Load expected output JSON data
-        with open(output_file) as file:
-            reference_result = json.load(file)
-        
-        result = function(question)
-
-        d = DeepDiff(result, reference_result, math_epsilon=0.01)
-        self.assertTrue(d == {}, str(d))
+        diff = DeepDiff(result, expected_output, math_epsilon=0.01)
+        self.assertTrue(diff == {}, str(diff))
+        test_case_id = str.split(input_file, '/')[-1].removeprefix('in-').removesuffix('.json')
+        print(f"[PASSED] {category} case {test_case_id}")
 
 if __name__ == '__main__':
     print("Starting tests...")
-    suite = unittest.TestLoader().loadTestsFromTestCase(TestWebServer)
-    unittest.TextTestRunner(verbosity=2).run(suite)
+    add_dynamic_tests(TestWebServer)
+    unittest.main()
