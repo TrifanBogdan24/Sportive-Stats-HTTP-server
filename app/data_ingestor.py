@@ -385,7 +385,8 @@ class DataIngestor:
         if not selected_rows:
             return {"error": "No data available for the given question and state"}
 
-        # Dictionary to store the total values and counts for each stratification category and stratification
+        # Dictionary to store the total values and counts
+        # for each stratification category and stratification
         category_totals = {}
         category_counts = {}
 

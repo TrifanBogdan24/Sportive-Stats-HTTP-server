@@ -3,24 +3,26 @@ import json
 import os
 from deepdiff import DeepDiff
 from app.data_ingestor import DataIngestor
+from enum import Enum
 
-# Constants For queries only on the 'question'
-test_categories_1 = [
-    "states_mean", "best5", "worst5", "global_mean", "diff_from_mean", "mean_by_category"
-]
+class Categories(Enum):
+    # Constants For queries only on the 'question'
+    CATEGORY_1 = [
+        "states_mean", "best5", "worst5", "global_mean", "diff_from_mean", "mean_by_category"
+    ]
 
-# Constants For queries only on both the 'question' and 'state'
-test_categories_2 = [
-    "state_mean", "state_diff_from_mean", "state_mean_by_category"
-]
+    # Constants For queries only on both the 'question' and 'state'
+    CATEGORY_2 = [
+        "state_mean", "state_diff_from_mean", "state_mean_by_category"
+    ]
 
-all_test_categories = test_categories_1 + test_categories_2
+    ALL_CATEGORIES = CATEGORY_1 + CATEGORY_2
 
 
 def discover_test_cases():
     """Dynamically discovers input/output test cases for each category"""
     test_cases = []
-    for category in all_test_categories :
+    for category in Categories.ALL_CATEGORIES.value:
         input_dir = f'unittests/tests/{category}/input'
         output_dir = f'unittests/tests/{category}/output'
         
@@ -68,7 +70,7 @@ class TestWebServer(unittest.TestCase):
 
         function = self.function_map[category] 
 
-        if category in test_categories_2:
+        if category in Categories.CATEGORY_2.value:
             state = request_data.get("state")
             result = function(question, state)
         else:

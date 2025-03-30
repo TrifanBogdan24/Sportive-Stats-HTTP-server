@@ -1,0 +1,59 @@
+python3 checker/checker.py
+..........
+----------------------------------------------------------------------
+Ran 10 tests in 6.200s
+
+OK
+
+PYLINT OUTPUT
+>>>>>>
+************* Module app
+app/__init__.py:10:0: W0404: Reimport 'JobType' (imported line 8) (reimported)
+app/__init__.py:34:0: C0413: Import "from app import routes" should be placed at the top of the module (wrong-import-position)
+************* Module app.data_ingestor
+app/data_ingestor.py:382:0: C0301: Line too long (107/100) (line-too-long)
+app/data_ingestor.py:388:0: C0301: Line too long (109/100) (line-too-long)
+app/data_ingestor.py:1:0: C0114: Missing module docstring (missing-module-docstring)
+app/data_ingestor.py:7:0: R0903: Too few public methods (1/2) (too-few-public-methods)
+app/data_ingestor.py:405:0: C0206: Consider iterating with .items() (consider-using-dict-items)
+************* Module app.routes
+app/routes.py:102:0: C0301: Line too long (104/100) (line-too-long)
+app/routes.py:104:0: C0303: Trailing whitespace (trailing-whitespace)
+app/routes.py:158:8: R1713: Consider using str.join(sequence) for concatenating strings from an iterable (consider-using-join)
+************* Module app.task_runner
+app/task_runner.py:26:0: C0303: Trailing whitespace (trailing-whitespace)
+app/task_runner.py:170:74: C0303: Trailing whitespace (trailing-whitespace)
+app/task_runner.py:172:0: C0303: Trailing whitespace (trailing-whitespace)
+app/task_runner.py:219:0: C0303: Trailing whitespace (trailing-whitespace)
+app/task_runner.py:308:0: C0301: Line too long (108/100) (line-too-long)
+app/task_runner.py:1:0: C0114: Missing module docstring (missing-module-docstring)
+app/task_runner.py:17:0: R0902: Too many instance attributes (8/7) (too-many-instance-attributes)
+app/task_runner.py:36:8: C0415: Import outside toplevel (app.webserver) (import-outside-toplevel)
+app/task_runner.py:66:8: C0415: Import outside toplevel (app.webserver) (import-outside-toplevel)
+app/task_runner.py:101:8: C0415: Import outside toplevel (app.webserver) (import-outside-toplevel)
+app/task_runner.py:161:8: C0415: Import outside toplevel (app.webserver) (import-outside-toplevel)
+app/task_runner.py:204:8: C0415: Import outside toplevel (app.webserver) (import-outside-toplevel)
+app/task_runner.py:254:8: C0415: Import outside toplevel (app.webserver) (import-outside-toplevel)
+app/task_runner.py:262:19: W0718: Catching too general exception Exception (broad-exception-caught)
+app/task_runner.py:254:8: W0611: Unused webserver imported from app (unused-import)
+app/task_runner.py:270:8: C0415: Import outside toplevel (app.webserver) (import-outside-toplevel)
+app/task_runner.py:13:0: C0411: third party import "flask.jsonify" should be placed before first party imports "app.job_type.JobType", "app.conurrent_hash_map.ConcurrentHashMap"  (wrong-import-order)
+************* Module app.conurrent_hash_map
+app/conurrent_hash_map.py:28:0: C0303: Trailing whitespace (trailing-whitespace)
+app/conurrent_hash_map.py:33:0: C0303: Trailing whitespace (trailing-whitespace)
+app/conurrent_hash_map.py:4:0: W0611: Unused import typing (unused-import)
+************* Module app.logger
+app/logger.py:8:0: W0611: Unused JobType imported from app.job_type (unused-import)
+app/logger.py:1:0: R0401: Cyclic import (app -> app.routes -> app.task_runner) (cyclic-import)
+app/logger.py:1:0: R0401: Cyclic import (app -> app.task_runner) (cyclic-import)
+app/logger.py:1:0: R0401: Cyclic import (app -> app.routes) (cyclic-import)
+
+------------------------------------------------------------------
+Your code has been rated at 9.30/10 (previous run: 9.30/10, +0.00)
+
+<<<<<<
+
+Your code has been rated at 9.30/10 (previous run: 9.30/10, +0.00)
+Last checker run time is: 2025-03-31 01:25:29.822959
+Your final score is: 100/100
+Total: 100

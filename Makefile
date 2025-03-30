@@ -22,4 +22,4 @@ run_tests: enforce_venv
 
 
 run_my_unittests: enforce_venv
-	python unittests/test_web_server.py
+	PYTHONPATH=. python3 unittests/TestWebserver.py

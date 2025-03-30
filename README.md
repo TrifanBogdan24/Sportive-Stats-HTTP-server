@@ -4,7 +4,8 @@
 
 > Link repository: <https://github.com/TrifanBogdan24/Sportive-Stats-HTTP-server.git> 
 
-> Am implementat intreg enuntul temei, mai putin testele unitare.
+> Am implementat intreg enuntul temei, inclusiv logging si unit testing.
+
 
 
 In cadrul acestei teme, am implementat back-end-ul unui server HTTP
@@ -165,3 +166,30 @@ log_handler = RotatingFileHandler(
     maxBytes=10*1024*1024, backupCount=10
 )
 ```
+
+
+## ✅ Unit Testing
+
+Pentru verificarea metodelor clasei `DataIngestor`,
+mi-am creat 2 CSV-uri cu cate 10 intrari:
+1. Primul pentru querry-urile doar in functie de *"question"*
+2. Al doilea fisier pentru procesarile care iau si *"state"*-ul in considerare
+
+
+Am incercat sa fac clasa de testare cat de **generic** am putut,
+astfel incat sa testeze metodele in functie de **toate fisierele input output** din directoarele aferente.
+In plus, mi-am definit **o singura functie capabila sa testeze toate metodele de procesare**
+(nu cate una pentru fiecate tip de request in parte).
+Drept urmare, codul meu este mult mai concis si usor de urmarit.
+
+
+
+
+### 👨‍💻 Cum se ruleaza **testele unitare**
+
+Din directorul radacina al repo-ului:
+```sh
+$ source venv/bin/activate
+$ PYTHONPATH=. python3 unittests/TestWebserver.py
+```
+
