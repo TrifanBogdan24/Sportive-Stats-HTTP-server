@@ -43,23 +43,21 @@ Metode pentru **controlul serverului/server info**:
 ## 📬Postman/🦊Restfox
 
 Un lucru cu adevarat interesant pe care l-am invatat la aceasta tema
-este cum sa-mi testez **API**-ul construit
+a fost cum sa-mi testez **API**-ul construit
 (o situatie reala la un posibil viitor loc de munca 🤓).
 
-Pe langa checker, am ales sa folosesc o metoda mai ne-programatica de **testare**:
-am trimis cereri HTTP din **Postman** (sau **Restfox**, alternativa mai lightweight)
-pentru a observa mai in detaliu raspunsurile serverului, comportamentul bazei de date de pe disc
-si activitatea de **logging**.
-
-Sincer, daca nu as fi rulat request-urile mai intai secvential din **Restfox**,
-nu mi-as fi dat seama ca thread-urile intra in **dead-lock**
-sau ca am gestionat gresit `mutex`-urile de pe fisiere, 
-ce a dus la procesarea a maxim 1 request pe secunda.
-
-> ⚙️ Este si asta o tehnica de debug.
+Am folosit **Restfox** (alternativa lightweight a lui **Postman**)
+pentru a analiza raspunsurile serverului, comportamentul bazei de date si logurile.
 
 
-##  Data Ingestor: CSV processing
+Daca nu as fi rulat request-urile mai intai secvential din **Restfox**,
+nu as fi descoperit **dead-lock**-uri cauzate de gestionarea gresita a `mutex`-urilor pe fisiere,
+probleme care mi-au limitat procesarea datelor la un singur request pe secunda.
+
+
+
+
+## 📋 Data Ingestor: CSV processing
 
 La pornirea server-ului se citeste fisierul **CSV**
 si se incarca in memorie doar coloanele de interes,
@@ -118,37 +116,23 @@ Thread-urile ruleaza intr-o bucla infinita atata timp cat:
 
 ## 🔒 Concurrent Hash Map si accesul la fisierele cu rezultate
 
-Folosirea unei baze de date pe disc in contextul programarii paralele
-presupune folosirea unor primitive de sincronizare care sa protejeze accesul la fisiere.
 
-Totusi, s-ar ocupa inutil RAM-ul daca as creea cate un mutex pentru fiecare job.
-Intrucat ultima scriere in fisier este aceea a rezultatului,
-pot sa fac urmatoarea **optimizare a memoriei**:
-mutex-ul pe fisierul unui job va *exista* doar pe durata procesarii datelor,
-iar apoi va fi dezalocat.
+Pentru a proteja accesul la fisierele bazei de date in contextul programarii paralele,
+mi-am implementat propriul **Concurrent Hash Map** (sub forma unui `dictionar` si unui `Lock()` privat)
+pentru a stoca, intr-un mod dinamic, mutex-uri doar pentru task-urile in curs de procesare.
 
-Pentru implementarea unei astfel de structuri de date dinamice,
-am ales sa folosesc un **Concurrent Hash Map** (dictionar),
-care are un lock intern declarat sub forma unui atribut privat
-pentru a asigura faptul ca operatiile realizate asupra dictionarului sunt thread-safe.
+> Accesul la fisier necesita obtinerea a doua lock-uri: unul pentru **Concurrent Hash Map** si unul pentru fisier.
 
-Thread Pool-ul va stoca ID-urile joburile in procesare drept chei in **Concurrent Hash Map**,
-iar `Lock()`-urile pe fieserele aferente job-urilor vor reprezenta valorile dictionarului.
-
-> Deschiderea accesului la fisier presupune obtinerea a doua mutex-uri:
-> lock-ul intern al **Concurrent Hash Map**-ului, iar apoi lock-ul aferent fisierului
-
-> Obtinerea accesului la fisier se face pe baza **JOB ID**-ului, astfel.
-
-Pasi:
-1. La creerea unui job nou se creeaza un nou mutex si se insereaza `id_job -> Lock()` in **Concurrent Hash Map**
-2. Tot la crearea job-ului, se scrie in fisierul rezultat: `{"status": "running"}`
-3. Se proceseaza datele, se scrie rezultatul in fisier, iar apoi se sterge intrarea `id_job -> Lock()` din dictionar
+Fiecare mutex este activ doar in timpul procesarii datelor si se dezaloca imediat dupa scrierea rezultatului pe disc.
+Folosirea acestui concept de **lifetime** (inspirat din Rust),
+impune ca numarul de mutex-uri pentru fisierele bazei de date
+sa fie cel mult egal cu numarul de thread-uri, economisind astfel memorie.
+ 
+ 
+**Thread Pool**-ul stocheaza joburile in procesare drept chei in **Concurrent Hash Map**,
+iar lock-urile pentru fisierele respective sunt valorile din dictionar.
 
 
-Astfel, folosind acest concept de **lifetime** (inspirat din Rust),
-impun ca numarul de mutex-uri pentru fisierele bazei de date
-sa fie cel mult egal cu numarul de thread-uri.
 
 
 ## 🪵 Logging server's activity
@@ -166,19 +150,6 @@ pentru a proteja accesul la fisier.
 Metoda `log_message()` a instantei clasei `Logger()` primeste un mesaj,
 pe care il scrie alaturi de timestamp-ul curent,
 in format 🕚 **GMT** (Greenwich Mean Time), un standard global, fix si independent de fusurile orare.
-
-Aceasta metoda `log_message()` este apelata:
-- La initializarea server-ului: mesajul va contine numarul de thread-uri
-- Ori de cate ori un request HTTP este primit de catre server:
-    mesajul va contine:
-    - Tipul metodei HTTP (`POST`/`GET`)
-    - Endpoint-ul accesat
-    - Payload-ul JSON (daca request-ul este de tip `POST`)
-    - In cazul request-urile de tip `POST`, se va afisa `job_id`-ul
-- Cand se primesc request-uri de procesare dupa ce s-a primit `GET /api/graceful_shutdown`:
-    mesajul scris va fi unul de eroare
-- Cand thread-urile au fost oprite in urma request-ului de `shutdown`
-- Cand un rezultat a fost calculat pentru un request de procesare a datelor
 
 
 ### 🗂️ Rotating file handler
