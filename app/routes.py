@@ -99,9 +99,10 @@ def handle_processing_request(req, job_type: JobType):
             response = {"status": "error", "reason": "shutting down"}
 
             message = \
-                f"- ERROR - Received bad request 'POST {job_type.value}' from {request.remote_addr}. " \
+                f"- ERROR - Received bad request 'POST {job_type.value}'" \
+                f" from {request.remote_addr}. " \
                 f"Server responded with {response} and 400 exit code."
-            
+
 
             webserver.logger.log_message(message)
             return jsonify(response), 400
@@ -153,9 +154,7 @@ def index():
     msg = "Hello, World!\n Interact with the webserver using one of the defined routes:\n"
 
     # Display each route as a separate HTML <p> tag
-    paragraphs = ""
-    for route in routes:
-        paragraphs += f"<p>{route}</p>"
+    paragraphs = "".join(f"<p>{route}</p>" for route in routes)
 
     msg += paragraphs
     return msg

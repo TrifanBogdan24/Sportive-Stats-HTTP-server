@@ -1,3 +1,5 @@
+"""Module that implements the Thread Pool design pattern"""
+
 from queue import Queue
 from threading import Thread, Event, Lock
 import os
@@ -6,11 +8,10 @@ import json
 from typing import Dict
 from contextlib import nullcontext
 
+from flask import jsonify
 
 from app.job_type import JobType
 from app.conurrent_hash_map import ConcurrentHashMap
-
-from flask import jsonify
 
 
 
@@ -23,7 +24,7 @@ class ThreadPool:
     - A pool of tasks: represented by a Queue
     - A group of workers (threads)
     """
-    
+
     def __init__(self):
         """
         Set up the Thread Pool:
@@ -46,12 +47,9 @@ class ThreadPool:
         self.lock_job_counter = Lock()
         self.lock_logger = Lock()
 
-
         self.file_data_base = ConcurrentHashMap()
 
         self.workers = []
-
-        self.types_processing_jobs = []
 
         for _ in range(self.num_threads):
             worker = TaskRunner(self.job_queue, self.shutdown_event)
@@ -167,9 +165,9 @@ class ThreadPool:
 
                 message = \
                     f"- INFO - Received request 'GET /api/graceful_shutdown' from {ip_addr}. " \
-                    f"Server responded with {response} and 200 exit code." 
+                    f"Server responded with {response} and 200 exit code."
                 webserver.logger.log_message(message)
-            
+
                 return response
             webserver.is_shutting_down = True
 
@@ -216,7 +214,7 @@ class ThreadPool:
 
             if not os.path.isfile(file_path):
                 continue
-            
+
 
             file_lock = webserver.tasks_runner.file_data_base.get(job_id)
 
@@ -251,8 +249,6 @@ class TaskRunner(Thread):
         At each step, it extracts a job from the server's queue and processes it.
         The loop ends when the worker receives the 'shutdown' Event, which stops the thread.
         """
-        from app import webserver
-
         while not self.shutdown_event.is_set() or not self.job_queue.empty():
             try:
                 # Using timeout=1 to avoid blocking indefinitely
@@ -305,7 +301,8 @@ class TaskRunner(Thread):
         elif job_type == JobType.STATE_MEAN_BY_CATEGORY:
             question: str = request_data.get("question", "")
             state: str = request_data.get("state", "")
-            response_data = webserver.data_ingestor.compute_response_state_mean_by_category(question, state)
+            response_data = webserver.data_ingestor.compute_response_state_mean_by_category(
+                question, state)
 
         # Save JOB's results to disk
         with webserver.tasks_runner.file_data_base.get(job_id):

@@ -1,3 +1,4 @@
+"""Module for calculating statistical operations on a CSV"""
 import json
 import csv
 
@@ -379,7 +380,9 @@ class DataIngestor:
         # Select rows that match the question and the state, with valid data_value
         selected_rows = [
             entry for entry in self.table_entries
-            if entry.question == question and entry.location_desc == state and entry.data_value is not None
+            if entry.question == question
+                and entry.location_desc == state
+                and entry.data_value is not None
         ]
 
         if not selected_rows:
@@ -402,8 +405,8 @@ class DataIngestor:
 
         # Calculate the mean for each category-stratification combination
         category_means = {
-            key: category_totals[key] / category_counts[key]
-            for key in category_totals
+            key: total / category_counts[key]
+            for key, total in category_totals.items()
         }
 
         calculated_values = {str(k): v for k, v in category_means.items()}

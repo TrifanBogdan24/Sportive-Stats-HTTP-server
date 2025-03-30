@@ -1,7 +1,6 @@
 """Module for a thread-safe hash-map"""
 
 from threading import Lock
-import typing
 
 
 class ConcurrentHashMap:
@@ -25,12 +24,12 @@ class ConcurrentHashMap:
         """
         with self._lock:
             return self.dictionary.get(key, None)
-    
+
     def delete(self, key):
         """Remove a 'key' from the dictionary"""
         with self._lock:
             self.dictionary.pop(key)
-        
+
     def contains(self, key) -> bool:
         """Returns whether or not the dictionary contains a given key"""
         with self._lock:

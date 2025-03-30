@@ -5,9 +5,8 @@ from threading import Lock
 from flask import Flask
 
 from app.data_ingestor import DataIngestor
-from app.task_runner import ThreadPool, JobType
+from app.task_runner import ThreadPool
 from app.logger import Logger
-from app.job_type import JobType
 
 
 
