@@ -4,7 +4,7 @@ rm -f $HOME/Downloads/ASC-Tema-1.zip
 
 git log > git-log
 
-zip $HOME/Downloads/ASC-Tema-1.zip \
+zip -r $HOME/Downloads/ASC-Tema-1.zip \
     api_server.py        \
     app/                 \
     app/routes.py        \
