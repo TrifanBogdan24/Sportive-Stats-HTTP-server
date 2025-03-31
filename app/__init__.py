@@ -18,8 +18,8 @@ else:
 
 webserver = Flask(__name__)
 
-webserver.data_ingestor = DataIngestor("./nutrition_activity_obesity_usa_subset.csv")
 webserver.logger = Logger()
+webserver.data_ingestor = DataIngestor("./nutrition_activity_obesity_usa_subset.csv")
 
 
 webserver.job_counter = 1

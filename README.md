@@ -155,7 +155,7 @@ mi-am creat 2 CSV-uri cu câte 10 intrări:
 
 Am încercat să fac clasa de testare cât de **generic** am putut,
 astfel încât să testeze metodele în funcție de **toate fișierele input output** din directoarele aferente.
-În plus, mi-am definit **o singură funcție capabilă să testeze toate metodele de procesare**
+În plus, mi-am definit **o singură funcție (de ordin superior) capabilă să testeze toate metodele de procesare**
 (nu câte una pentru fiecate tip de request în parte).
 Drept urmare, codul meu este mult mai concis și ușor de urmărit.
 

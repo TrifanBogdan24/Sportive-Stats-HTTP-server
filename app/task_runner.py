@@ -63,7 +63,6 @@ class ThreadPool:
         """Inserts the job in the server's Queue"""
         from app import webserver
 
-
         # Get job_id and increment JOB counter
         with self.lock_job_counter:
             job_id = webserver.job_counter
