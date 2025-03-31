@@ -14,6 +14,7 @@ zip -r $HOME/Downloads/ASC-Tema-1.zip \
     README.md            \
     unittests/           \
     unittests/mytests.py \
-    git-log
+    git-log              \
+    -x "**/__pycache__/*"   # Exclude __pycache__
 
 rm -f git-log

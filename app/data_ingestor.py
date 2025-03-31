@@ -76,7 +76,7 @@ class DataIngestor:
                     webserver.logger.log_message(
                         f"- ERROR - Skipping row {index} from CSV '{csv_path}' "\
                         f"due to error: {err}")
-            
+
             webserver.logger.log_message(f"- INFO - Loaded '{csv_path}' in memory")
 
 
