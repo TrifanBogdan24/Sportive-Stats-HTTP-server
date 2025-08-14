@@ -1,14 +1,13 @@
 # Sportiv Stats - HTTP web server
 
-> Tema 1 ASC - Trifan Bogdan-Cristian, 331CD
+> **Autor**: Trifan Bogdan-Cristian (331CD)
 
-> Link repository: <https://github.com/TrifanBogdan24/Sportive-Stats-HTTP-server.git> 
+Am dezvoltat backend-ul unui server web în **Python** cu framework-ul **Flask**
+pentru a analiza și procesa date statistice
+despre activitatea fizică și obezitatea din SUA (2011–2022).
 
-> Am implementat întreg enunțul temei, inclusiv logging și unit testing.
-
-În cadrul acestei teme, am implementat back-end-ul unui server HTTP
-capabil să proceseze simultan mai multe request-uri în același timp,
-datorită faptului că am folosit design pattern-ul **Replicated Workers** (numit și **Thread Pool**)
+Server-ul este capabil să proceseze simultan mai multe request-uri HTTP,
+datorită implementării design pattern-ul **Replicated Workers** (numit și **Thread Pool**).
 
 ## RESTful API
 
@@ -39,12 +38,12 @@ Metode pentru **controlul serverului/server info**:
 
 ## 📬 Postman/🦊 Restfox
 
-Un lucru cu adevărat interesant pe care l-am învățat în această temă
+Un lucru cu adevărat interesant pe care l-am învățat în aceast proiect
 a fost cum să-mi testez **API**-ul construit
 (o situație reală la un posibil viitor loc de muncă 🤓).
 
 Am folosit **Restfox** (alternativa lightweight a lui **Postman**)
-pentru a analiza răspunsurile serverului, comportamentul bazei de date și logurile.
+pentru a analiza răspunsurile serverului, comportamentul "bazei de date" și logurile.
 
 Dacă nu aș fi rulat request-urile mai întâi secvențial din **Restfox**,
 nu aș fi descoperit **dead-lock**-uri sau gestionarea greșită a `mutex`-urilor pe fișiere,
@@ -56,13 +55,18 @@ La pornirea server-ului se citește fișierul **CSV**
 și se încarcă în memorie doar coloanele de interes,
 în funcție de care se va realiza selecția ulterioară a datelor.
 
-Instanța clasei `DataIngestor` furnizează metode care,
-filtrând liniile tabelului în funcție de **question** și **state**,
-afectuează diverse **operații statistice** asupra acestora
-(e.g.: medie, deviație de la medie, cele mai bune/slabe intrări)
-și întoarce un JSON sub forma unui dicționar.
+Metodele clasei `DataIngestor`
+filtrează liniile tabelului în funcție de **question** și **state**,
+iar mai apoi calculează următoarele **operații statistice**:
+- 📌 Media valorilor pentru fiecare stat
+- 🌎 Media globală a valorilor
+- 📊 Deviția de la medie
+- 🔝 Top 5 cele mai bune/slabe rezultate
 
-Tratarea cererilor HTTP pentru procesări de date presupune apelarea acestor metode.
+
+Rezultatul acestor funcții, un JSON (sub forma unui dicționar),
+este inclus în răspunsul cererilor HTTP ce presupun procesări de date.
+
 
 ## 🧵 Thread Pool
 
@@ -95,9 +99,6 @@ am definit un `Event()` la nivelul instantei clasei `ThreadPool`,
 care este activat la primirea acestei cereri HTTP,
 declanșând astfel oprirea thread-urilor după ce toate request-urile de procesare de date au fost rezolvate.
 
-Thread-urile rulează într-o buclă infinită atâta timp cât:
-- coada mai conține task-uri de procesat
-- sau `Event()`-ul nu este activat
 
 ## 🔒 Concurrent Hash Map și accesul la fișierele cu rezultate
 
@@ -162,7 +163,7 @@ Drept urmare, codul meu este mult mai concis și ușor de urmărit.
 ### 👨‍💻 Cum se rulează **testele unitare**
 
 Din directorul rădăcină al repo-ului:
-```py
-$ source venv/bin/activate
-$ PYTHONPATH=. python3 unittests/TestWebserver.py
+```sh
+source venv/bin/activate
+PYTHONPATH=. python3 unittests/TestWebserver.py
 ```
