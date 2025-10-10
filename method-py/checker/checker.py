@@ -109,8 +109,8 @@ class TestAPI(unittest.TestCase):
     def helper_test_endpoint(self, endpoint):
         global total_score
 
-        output_dir = f"tests/{endpoint}/output/"
-        input_dir = f"tests/{endpoint}/input/"
+        output_dir = f"../tests/{endpoint}/output/"
+        input_dir = f"../tests/{endpoint}/input/"
         input_files = os.listdir(input_dir)
 
         test_suite_score = 10

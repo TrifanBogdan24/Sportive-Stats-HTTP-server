@@ -1,0 +1,45 @@
+name: Run Python Server and Tests (tmux-like)
+
+on:
+  push:
+    
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 📥 Install dependencies
+        working-directory: ./method-py
+        run: |
+          python3 -m venv .venv
+          source .venv/bin/activate
+          pip3 install -r requirements.txt
+
+      - name: Start Server & Run Tests
+        working-directory: ./method-py
+        run: |
+          # Start server in background (like tmux pane 1)
+          source .venv/bin/activate
+          make run_server &
+          SERVER_PID=$!
+
+          echo "Server started with PID $SERVER_PID"
+          # wait a few seconds to make sure it’s up
+          sleep 5
+
+          # Run tests in the same shell (like tmux pane 2)
+          make run_tests
+
+          # Cleanup
+          echo "Stopping server..."
+          kill $SERVER_PID
