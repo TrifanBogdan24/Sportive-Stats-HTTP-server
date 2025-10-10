@@ -1,9 +1,32 @@
 mod data_ingestor;
+mod routes;
 
 use crate::data_ingestor::{load_csv, Table};
+use std::{net::SocketAddr, str::FromStr};
+use tokio::net::TcpListener;
 
-fn main() {
-    let table: Table = load_csv("../nutrition_activity_obesity_usa_subset.csv");
-    println!("CSV loaded");
+use crate::routes::{
+    app
+};
 
+
+use axum::{
+    extract::State,
+    routing::{get, post},
+    Router,
+    serve
+};
+
+
+#[tokio::main]
+async fn main() {
+
+
+    let app: Router = app();
+
+    let addr = SocketAddr::from_str("0.0.0.0:8080").unwrap();
+    let listener = TcpListener::bind(addr).await.unwrap();
+
+    println!("Listening on 0.0.0.0:8080");
+    axum::serve(listener, app).await.unwrap();
 }

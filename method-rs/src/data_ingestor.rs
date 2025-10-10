@@ -1,5 +1,5 @@
 use serde::{Serialize, Deserialize};
-use std::{collections::{self, HashMap}, fs::File, os::linux::raw::stat};
+use std::{collections::{self, btree_map::Range, HashMap}, fs::File, os::linux::raw::stat};
 use csv::ReaderBuilder;
 use serde_json::{self, json};
 
@@ -7,7 +7,7 @@ use serde_json::{self, json};
 
 /// This is best-effort (cannot store String as const)
 
-const questions_best_is_min: &[&str] = &[
+const QUESTIONS_BEST_IS_MIN: &[&str] = &[
     "Percent of adults aged 18 years and older who have an overweight) classification",
     "Percent of adults aged 18 years and older who have obesity",
     "Percent of adults who engage in no leisure-time physical activity",
@@ -15,7 +15,7 @@ const questions_best_is_min: &[&str] = &[
     "Percent of adults who report consuming vegetables less than one time daily"
 ];
 
-const questions_best_is_max: &[&str] = &[
+const QUESTIONS_BEST_IS_MAX: &[&str] = &[
     "Percent of adults who achieve at least 150 minutes a week \"
         of moderate-intensity aerobic physical activity \
         or 75 minutes a week of vigorous-intensity aerobic activity \
@@ -32,6 +32,13 @@ const questions_best_is_max: &[&str] = &[
         on 2 or more days a week"
 ];
 
+
+
+#[derive(PartialEq)]
+enum RankingType {
+    Best5,
+    Worst5
+}
 
 
 // Relevant columns from CSV file
@@ -149,22 +156,24 @@ fn compute_states_mean(table: &Table, question: &str) -> HashMap<String, f32> {
     let mut states_mean: HashMap<String, f32> = HashMap::new();
 
     for (state, total) in state_totals.iter() {
-        states_mean.insert(state.to_string(), total / state_counts.get(state).unwrap().clone() as f32);
+        states_mean.insert(
+            state.to_string(), 
+            total / state_counts.get(state).unwrap().clone() as f32
+        );
     }
 
     states_mean
 }
 
 
-pub fn compute_response_states_mean(table: &Table, question: &str) -> String {
+pub fn json_response_states_mean(table: &Table, question: &str) -> String {
     // TODO:
     let states_mean: HashMap<String, f32> = compute_states_mean(table, question);
-    let json = serde_json::to_string(&states_mean).unwrap();
-    json
+    serde_json::to_string(&states_mean).unwrap()
 }
 
 
-pub fn compute_response_state_mean(table: &Table, question: &str, state: &str) -> String {
+pub fn json_response_state_mean(table: &Table, question: &str, state: &str) -> String {
     // TODO:
     let selected_entries: Vec<&TableEntry> = table
         .entries
@@ -189,29 +198,21 @@ pub fn compute_response_state_mean(table: &Table, question: &str, state: &str) -
         state_total / selected_entries.len() as f32
     );
 
-    let json = serde_json::to_string(&state_mean).unwrap();
-    json
+    serde_json::to_string(&state_mean).unwrap()
 }
 
 
-pub fn compute_response_best5(table: &Table, question: &str) -> String {
-    // TODO
-    let states_mean: HashMap<String, f32> = compute_states_mean(table, question);
+fn get_best5_or_worst5(
+    states_mean: &HashMap<String, f32>,
+    question: &str,
+    ranking_type: RankingType
+) -> String {
+    let is_question_in_best_mins: bool = QUESTIONS_BEST_IS_MIN.contains(&question);
+    let is_question_in_best_maxs: bool = QUESTIONS_BEST_IS_MAX.contains(&question);
 
-    if states_mean.is_empty() {
-        let mut response: HashMap<String, String> = HashMap::new();
-        response.insert(
-            "error".to_string(),
-            "No data available for the given question".to_string()
-        );
-
-        let json = serde_json::to_string(&response).unwrap();
-        return json;
-    }
-
-
-    if questions_best_is_min.contains(&question) == true {
-        // TODO: sort in ASCENDING order (smaller values are best)
+    if (is_question_in_best_mins == true && ranking_type == RankingType::Best5)
+        || (is_question_in_best_maxs == true && ranking_type == RankingType::Worst5) {
+        // Sort in ASCENDING order (smaller values are best)
         let mut sorted: Vec<(&String, &f32)> = states_mean.iter().collect();
         sorted.sort_by(|a, b| a.1.partial_cmp(b.1).unwrap());
 
@@ -219,11 +220,12 @@ pub fn compute_response_best5(table: &Table, question: &str) -> String {
         let top5_vec = &sorted[..5.min(sorted.len())];
 
         // Convert to HashMap
-        let top5_map: HashMap<_, _> = top5_vec.iter().map(|(k, v)| (k.clone(), **v)).collect();
+        let top5_map: HashMap<_, _> = top5_vec.iter().map(|(k, v)| (k, **v)).collect();
 
         serde_json::to_string(&top5_map).unwrap()
-    } else if questions_best_is_max.contains(&question) == true {
-        // TODO: sort in DESCENDING order (bigger values are best)
+    } else if (is_question_in_best_maxs == true && ranking_type == RankingType::Best5)
+        || (is_question_in_best_mins == true && ranking_type == RankingType::Worst5) {
+        // Sort in DESCENDING order (bigger values are best)
         let mut sorted: Vec<(&String, &f32)> = states_mean.iter().collect();
         sorted.sort_by(|a, b| b.1.partial_cmp(a.1).unwrap());
 
@@ -231,7 +233,7 @@ pub fn compute_response_best5(table: &Table, question: &str) -> String {
         let top5_vec = &sorted[..5.min(sorted.len())];
 
         // Convert to HashMap
-        let top5_map: HashMap<_, _> = top5_vec.iter().map(|(k, v)| (k.clone(), **v)).collect();
+        let top5_map: HashMap<_, _> = top5_vec.iter().map(|(k, v)| (k, **v)).collect();
 
         serde_json::to_string(&top5_map).unwrap()
     } else {
@@ -243,4 +245,146 @@ pub fn compute_response_best5(table: &Table, question: &str) -> String {
 
         serde_json::to_string(&response).unwrap()
     }
+}
+
+pub fn json_response_best5(table: &Table, question: &str) -> String {
+    // TODO
+    let states_mean: HashMap<String, f32> = compute_states_mean(table, question);
+
+    if states_mean.is_empty() {
+        let mut response: HashMap<String, String> = HashMap::new();
+        response.insert(
+            "error".to_string(),
+            "No data available for the given question".to_string()
+        );
+
+        serde_json::to_string(&response).unwrap()
+    } else {
+        get_best5_or_worst5(&states_mean, question, RankingType::Best5)
+    }
+
+}
+
+
+
+pub fn json_response_worst5(table: &Table, question: &str) -> String {
+    // TODO
+    let states_mean: HashMap<String, f32> = compute_states_mean(table, question);
+
+    if states_mean.is_empty() {
+        let mut response: HashMap<String, String> = HashMap::new();
+        response.insert(
+            "error".to_string(),
+            "No data available for the given question".to_string()
+        );
+
+        serde_json::to_string(&response).unwrap()
+    } else {
+        get_best5_or_worst5(&states_mean, question, RankingType::Worst5)
+    }
+
+}
+
+
+
+pub fn json_response_global_mean(table: &Table, question: &str) -> String {
+    let selected_values: Vec<f32> = table
+        .entries
+        .iter()
+        .filter(|entry| entry.question == question)
+        .map(|entry|  entry.data_value)
+        .collect();
+
+    if selected_values.is_empty() {
+        let mut response: HashMap<String, Option<()>> = HashMap::new();
+        response.insert(
+            "global_mean".to_string(),
+            None
+        );
+
+        serde_json::to_string(&response).unwrap()
+    } else {
+        let sum: f32 = selected_values.iter().sum();
+        let global_mean: f32 = sum / selected_values.len() as f32;
+        let mut response: HashMap<String, f32> = HashMap::new();
+            response.insert(
+                "global_mean".to_string(),
+                global_mean
+            );
+
+        serde_json::to_string(&response).unwrap()
+    }
+}
+
+
+
+pub fn json_response_diff_from_mean(table: &Table, question: &str) -> String {
+    let selected_values: Vec<f32> = table
+        .entries
+        .iter()
+        .filter(|entry| entry.question == question)
+        .map(|entry|  entry.data_value)
+        .collect();
+
+    if selected_values.is_empty() {
+        let sum: f32 = selected_values.iter().sum();
+        let global_mean: f32 = sum / selected_values.len() as f32;
+        let mut response: HashMap<String, f32> = HashMap::new();
+            response.insert(
+                "global_mean".to_string(),
+                global_mean
+            );
+
+        return serde_json::to_string(&response).unwrap();
+    }
+
+    // Using ::<f32> turbofish
+    let global_mean: f32 = selected_values.iter().sum::<f32>() / selected_values.len() as f32;
+
+    let states_mean: HashMap<String, f32> = compute_states_mean(table, question);
+
+    let mut diff_from_mean: HashMap<String, f32> = HashMap::new();
+
+    for (state, mean) in states_mean.iter() {
+        diff_from_mean.insert(
+            state.to_string(),
+            global_mean - mean
+        );
+    }
+
+    // Operations: HashMap -> Vec -> sort DESC -> HashMap
+
+    // Sort in DESCENDING order
+    let mut sorted: Vec<(&String, &f32)> = diff_from_mean.iter().collect();
+    sorted.sort_by(|a, b| a.1.partial_cmp(b.1).unwrap());
+
+
+    let diff_from_mean: HashMap<String, f32> = sorted.into_iter().map(|(k, v)| (k.clone(), *v)).collect();
+
+
+    serde_json::to_string(&diff_from_mean).unwrap()
+}
+
+
+pub fn json_response_mean_by_catagory(table: &Table, question: &str) -> String {
+    let selected_entries: Vec<&TableEntry> = table
+        .entries
+        .iter()
+        .filter(|entry| entry.question == question)
+        .collect();
+
+    if selected_entries.is_empty() {
+        return serde_json::to_string("").unwrap();
+    }
+
+    for entry in selected_entries.iter() {
+        if entry.stratification1 == "" || entry.stratification_category1 == "" {
+            continue;
+        }
+    }
+
+
+    // TODO: continue it
+    
+    String::new()
 }
