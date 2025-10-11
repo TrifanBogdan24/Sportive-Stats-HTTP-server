@@ -1,0 +1,12 @@
+pub enum RequestType {
+    GET_RESULTS,
+    STATES_MEAN,
+    STATE_MEAN,
+    BEST_5,
+    WORST_5,
+    GLOBAL_MEAN,
+    DIFF_FROM_MEAN,
+    STATE_DIFF_FROM_MEAN,
+    MEAN_BY_CATEGORY,
+    STATE_MEAN_BY_CATEGORY
+}
