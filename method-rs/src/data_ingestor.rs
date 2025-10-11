@@ -126,7 +126,7 @@ pub fn load_csv(filename: &str) -> Table {
 
 
 
-fn compute_states_mean(table: &Table, question: &str) -> HashMap<String, f32> {
+fn compute_states_mean<'a>(table: &'a Table, question: &'a str) -> HashMap<&'a str, f32> {
     let selected_entries: Vec<&TableEntry> = table
         .entries
         .iter()
@@ -134,30 +134,34 @@ fn compute_states_mean(table: &Table, question: &str) -> HashMap<String, f32> {
         .collect();
 
 
-    let mut state_totals: HashMap<String, f32> = HashMap::new();
-    let mut state_counts: HashMap<String, u32> = HashMap::new();
+    let mut state_totals: HashMap<&str, f32> = HashMap::new();
+    let mut state_counts: HashMap<&str, u32> = HashMap::new();
 
     for entry in selected_entries {
         let state: &str = &entry.location_desc;
 
         if let Some(value) = state_totals.get(state) {
-            state_totals.insert(state.to_string() , value + entry.data_value);
+            // Key is in HashMap
+            state_totals.insert(&state , value + entry.data_value);
         } else {
-            state_totals.insert(state.to_string() , 0.0);
+            // Key is NOT in HashMap
+            state_totals.insert(&state, 0.0);
         }
 
         if let Some(value) = state_counts.get(state) {
-            state_counts.insert(state.to_string() , value + 1);
+            // Key is in HashMap
+            state_counts.insert(&state, value + 1);
         } else {
-            state_counts.insert(state.to_string() , 0);
+            // Key is NOT in HashMap
+            state_counts.insert(&state, 0);
         }
     }
 
-    let mut states_mean: HashMap<String, f32> = HashMap::new();
+    let mut states_mean: HashMap<&str, f32> = HashMap::new();
 
     for (state, total) in state_totals.iter() {
         states_mean.insert(
-            state.to_string(), 
+            &state, 
             total / state_counts.get(state).unwrap().clone() as f32
         );
     }
@@ -168,7 +172,7 @@ fn compute_states_mean(table: &Table, question: &str) -> HashMap<String, f32> {
 
 pub fn json_response_states_mean(table: &Table, question: &str) -> String {
     // TODO:
-    let states_mean: HashMap<String, f32> = compute_states_mean(table, question);
+    let states_mean: HashMap<&str, f32> = compute_states_mean(table, question);
     serde_json::to_string(&states_mean).unwrap()
 }
 
@@ -191,10 +195,10 @@ pub fn json_response_state_mean(table: &Table, question: &str, state: &str) -> S
         .map(|entry| entry.data_value)
         .sum();
 
-    let mut state_mean: HashMap<String, f32> = HashMap::new();
+    let mut state_mean: HashMap<&str, f32> = HashMap::new();
 
     state_mean.insert(
-        state.to_string(),
+        &state,
         state_total / selected_entries.len() as f32
     );
 
@@ -203,7 +207,7 @@ pub fn json_response_state_mean(table: &Table, question: &str, state: &str) -> S
 
 
 fn get_best5_or_worst5(
-    states_mean: &HashMap<String, f32>,
+    states_mean: &HashMap<&str, f32>,
     question: &str,
     ranking_type: RankingType
 ) -> String {
@@ -213,7 +217,7 @@ fn get_best5_or_worst5(
     if (is_question_in_best_mins == true && ranking_type == RankingType::Best5)
         || (is_question_in_best_maxs == true && ranking_type == RankingType::Worst5) {
         // Sort in ASCENDING order (smaller values are best)
-        let mut sorted: Vec<(&String, &f32)> = states_mean.iter().collect();
+        let mut sorted: Vec<(&&str, &f32)> = states_mean.iter().collect();
         sorted.sort_by(|a, b| a.1.partial_cmp(b.1).unwrap());
 
         // Take first 5 (handles cases with <5 elements)
@@ -226,7 +230,7 @@ fn get_best5_or_worst5(
     } else if (is_question_in_best_maxs == true && ranking_type == RankingType::Best5)
         || (is_question_in_best_mins == true && ranking_type == RankingType::Worst5) {
         // Sort in DESCENDING order (bigger values are best)
-        let mut sorted: Vec<(&String, &f32)> = states_mean.iter().collect();
+        let mut sorted: Vec<(&&str, &f32)> = states_mean.iter().collect();
         sorted.sort_by(|a, b| b.1.partial_cmp(a.1).unwrap());
 
         // Take first 5 (handles cases with <5 elements)
@@ -237,10 +241,10 @@ fn get_best5_or_worst5(
 
         serde_json::to_string(&top5_map).unwrap()
     } else {
-        let mut response: HashMap<String, String> = HashMap::new();
+        let mut response: HashMap<&str, &str> = HashMap::new();
         response.insert(
-            "error".to_string(),
-            "Question not found in predefined lists".to_string()
+            "error",
+            "Question not found in predefined lists"
         );
 
         serde_json::to_string(&response).unwrap()
@@ -249,13 +253,13 @@ fn get_best5_or_worst5(
 
 pub fn json_response_best5(table: &Table, question: &str) -> String {
     // TODO
-    let states_mean: HashMap<String, f32> = compute_states_mean(table, question);
+    let states_mean: HashMap<&str, f32> = compute_states_mean(table, question);
 
     if states_mean.is_empty() {
-        let mut response: HashMap<String, String> = HashMap::new();
+        let mut response: HashMap<&str, &str> = HashMap::new();
         response.insert(
-            "error".to_string(),
-            "No data available for the given question".to_string()
+            &"error",
+            &"No data available for the given question"
         );
 
         serde_json::to_string(&response).unwrap()
@@ -269,7 +273,7 @@ pub fn json_response_best5(table: &Table, question: &str) -> String {
 
 pub fn json_response_worst5(table: &Table, question: &str) -> String {
     // TODO
-    let states_mean: HashMap<String, f32> = compute_states_mean(table, question);
+    let states_mean: HashMap<&str, f32> = compute_states_mean(table, question);
 
     if states_mean.is_empty() {
         let mut response: HashMap<String, String> = HashMap::new();
@@ -296,9 +300,9 @@ pub fn json_response_global_mean(table: &Table, question: &str) -> String {
         .collect();
 
     if selected_values.is_empty() {
-        let mut response: HashMap<String, Option<()>> = HashMap::new();
+        let mut response: HashMap<&str, Option<()>> = HashMap::new();
         response.insert(
-            "global_mean".to_string(),
+            &"global_mean",
             None
         );
 
@@ -306,9 +310,9 @@ pub fn json_response_global_mean(table: &Table, question: &str) -> String {
     } else {
         let sum: f32 = selected_values.iter().sum();
         let global_mean: f32 = sum / selected_values.len() as f32;
-        let mut response: HashMap<String, f32> = HashMap::new();
+        let mut response: HashMap<&str, f32> = HashMap::new();
             response.insert(
-                "global_mean".to_string(),
+                &"global_mean",
                 global_mean
             );
 
@@ -329,9 +333,9 @@ pub fn json_response_diff_from_mean(table: &Table, question: &str) -> String {
     if selected_values.is_empty() {
         let sum: f32 = selected_values.iter().sum();
         let global_mean: f32 = sum / selected_values.len() as f32;
-        let mut response: HashMap<String, f32> = HashMap::new();
+        let mut response: HashMap<&str, f32> = HashMap::new();
             response.insert(
-                "global_mean".to_string(),
+                &"global_mean",
                 global_mean
             );
 
@@ -341,13 +345,13 @@ pub fn json_response_diff_from_mean(table: &Table, question: &str) -> String {
     // Using ::<f32> turbofish
     let global_mean: f32 = selected_values.iter().sum::<f32>() / selected_values.len() as f32;
 
-    let states_mean: HashMap<String, f32> = compute_states_mean(table, question);
+    let states_mean: HashMap<&str, f32> = compute_states_mean(table, question);
 
-    let mut diff_from_mean: HashMap<String, f32> = HashMap::new();
+    let mut diff_from_mean: HashMap<&str, f32> = HashMap::new();
 
     for (state, mean) in states_mean.iter() {
         diff_from_mean.insert(
-            state.to_string(),
+            &state,
             global_mean - mean
         );
     }
@@ -355,11 +359,13 @@ pub fn json_response_diff_from_mean(table: &Table, question: &str) -> String {
     // Operations: HashMap -> Vec -> sort DESC -> HashMap
 
     // Sort in DESCENDING order
-    let mut sorted: Vec<(&String, &f32)> = diff_from_mean.iter().collect();
-    sorted.sort_by(|a, b| a.1.partial_cmp(b.1).unwrap());
+    let mut sorted: Vec<(&str, f32)> = diff_from_mean
+        .into_iter()
+        .collect();
+    sorted.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
 
 
-    let diff_from_mean: HashMap<String, f32> = sorted.into_iter().map(|(k, v)| (k.clone(), *v)).collect();
+    let diff_from_mean: HashMap<&str, f32> = sorted.into_iter().map(|(k, v)| (k.clone(), v)).collect();
 
 
     serde_json::to_string(&diff_from_mean).unwrap()
@@ -377,11 +383,139 @@ pub fn json_response_mean_by_catagory(table: &Table, question: &str) -> String {
         return serde_json::to_string("").unwrap();
     }
 
+
+    let mut category_totals: HashMap<(&str, &str, &str), f32> = HashMap::new();
+    let mut category_counts: HashMap<(&str, &str, &str), u32> = HashMap::new();
+
     for entry in selected_entries.iter() {
         if entry.stratification1 == "" || entry.stratification_category1 == "" {
             continue;
         }
+
+        let key: (&str, &str, &str)  = (
+            &entry.location_desc,
+            &entry.stratification_category1,
+            &entry.stratification1
+        );
+
+
+        if let Some(value) = category_totals.get(&key) {
+            // Key is in HashMap
+            category_totals.insert(key.clone(), value + entry.data_value);
+        } else {
+            // Key is NOT in HashMap
+            category_totals.insert(key.clone(), entry.data_value);
+        }
+
+        if let Some(value) = category_counts.get(&key) {
+            // Key is in HashMap
+            category_counts.insert(key.clone(), value + 1);
+        } else {
+            // Key is NOT in HashMap
+            category_counts.insert(key.clone(), 1);
+        }
     }
+
+    let mut category_priority: HashMap<&str, u32> = HashMap::new();
+    category_priority.insert(
+        "Age (years)",
+        1
+    );
+    category_priority.insert(
+        "Education",
+        2
+    );
+    category_priority.insert(
+        "Gender",
+        3
+    );
+    category_priority.insert(
+        "Income",
+        4
+    );
+    category_priority.insert(
+        "Race/Ethnicity",
+        5
+    );
+    category_priority.insert(
+        "Total",
+        6
+    );
+
+    let mut age_priority: HashMap<&str, u32> = HashMap::new();
+    age_priority.insert(
+        "18 - 24",
+        1
+    );
+    age_priority.insert(
+        "25 - 34",
+        2
+    );
+    age_priority.insert(
+        "35 - 44",
+        3
+    );
+    age_priority.insert(
+        "45 - 54",
+        4
+    );
+    age_priority.insert(
+        "55 - 64",
+        5
+    );
+    age_priority.insert(
+        "65 or older",
+        6
+    );
+
+
+    let mut education_priority: HashMap<&str, u32> = HashMap::new();
+    education_priority.insert(
+        "Less than high school",
+        1
+    );
+    education_priority.insert(
+        "High school graduate",
+        2
+    );
+    education_priority.insert(
+        "Some college or technical school",
+        3
+    );
+    education_priority.insert(
+        "College graduate",
+        4
+    );
+
+    let mut income_priority: HashMap<&str, u32> = HashMap::new();
+    income_priority.insert(
+        "Less than $15,000",
+        1
+    );
+    income_priority.insert(
+        "$15,000 - $24,999",
+        2
+    );
+    income_priority.insert(
+        "$25,000 - $34,999",
+        3
+    );
+    income_priority.insert(
+        "$35,000 - $49,999",
+        4
+    );
+    income_priority.insert(
+        "$50,000 - $74,999",
+        5
+    );
+    income_priority.insert(
+        "$75,000 or greater",
+        6
+    );
+    income_priority.insert(
+        "Data not reported",
+        7
+    );
 
 
     // TODO: continue it
