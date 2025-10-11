@@ -1,0 +1,18 @@
+{
+    "_type": "request",
+    "method": "POST",
+    "body": {
+        "mimeType": "application/json",
+        "text": "{\"question\": \"Percent of adults who engage in muscle-strengthening activities on 2 or more days a week\"}"
+    },
+    "url": "http://127.0.0.1:8000/api/diff_from_mean",
+    "sortOrder": 5,
+    "parameters": [],
+    "pathParameters": [],
+    "headers": [
+        {
+            "name": "Content-Type",
+            "value": "application/json"
+        }
+    ]
+}

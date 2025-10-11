@@ -1,0 +1,18 @@
+{
+    "_type": "request",
+    "method": "POST",
+    "body": {
+        "mimeType": "application/json",
+        "text": "{\"question\": \"Percent of adults aged 18 years and older who have an overweight classification\"}\n"
+    },
+    "url": "http://127.0.0.1:8000/api/best5",
+    "sortOrder": 0,
+    "parameters": [],
+    "headers": [
+        {
+            "name": "Content-Type",
+            "value": "application/json"
+        }
+    ],
+    "pathParameters": []
+}
