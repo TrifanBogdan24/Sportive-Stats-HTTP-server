@@ -33,6 +33,8 @@ impl ThreadPool {
             ));
         }
 
+
+        println!("Starting thread pool with {} runners", num_threads);
         ThreadPool { workers, queue, shutdown }
     }
 

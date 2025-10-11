@@ -21,7 +21,11 @@ use crate::thread_pool::ThreadPool;
 
 #[tokio::main]
 async fn main() {
-    let server: Router = http_server();
+    let table: Table = load_csv("../nutrition_activity_obesity_usa_subset.csv");
+    println!("Loaded CSV");
+    let thread_pool: ThreadPool = ThreadPool::new();
+
+    let server: Router = http_server(table, thread_pool);
     let addr = SocketAddr::from_str("0.0.0.0:8000").unwrap();
     let listener = TcpListener::bind(addr).await.unwrap();
     println!("Listening on 0.0.0.0:8000");
