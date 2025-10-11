@@ -2,8 +2,11 @@ name: Run Python Server and Tests (tmux-like)
 
 on:
   push:
-    
+    branches: main
+    paths: ["method-py/**", "tests/**", ".github/workflows/**"]
   pull_request:
+    branches: main
+    paths: ["method-py/**", "tests/**", ".github/workflows/**"]
 
 jobs:
   test:
