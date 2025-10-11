@@ -5,14 +5,7 @@ use axum::{
 };
 
 use crate::data_ingestor::{
-    Table,
-    json_response_states_mean,
-    json_response_state_mean,
-    json_response_best5,
-    json_response_worst5,
-    json_response_global_mean,
-    json_response_diff_from_mean,
-    load_csv
+    json_response_best5, json_response_diff_from_mean, json_response_global_mean, json_response_state_mean, json_response_state_mean_by_category, json_response_states_mean, json_response_worst5, load_csv, Table
 };
 
 use serde::Deserialize;
@@ -43,6 +36,7 @@ pub fn app() -> Router {
         .route("/api/worst5", post(request_worst5))
         .route("/api/global_mean", post(request_global_mean))
         .route("/api/diff_from_mean", post(request_diff_from_mean))
+        .route("/api/state_mean_by_category", post(request_state_mean_by_category))
         .with_state(data)
 }
 
@@ -103,5 +97,14 @@ async fn request_diff_from_mean(
 ) -> impl IntoResponse {
     let table = state.lock().unwrap();
     let json: String = json_response_diff_from_mean(&*table, &payload.question);
+    (StatusCode::OK, json)
+}
+
+async fn request_state_mean_by_category(
+    State(state): State<Arc<Mutex<Table>>>,
+    Json(payload): Json<QuestionStateRequest>
+) -> impl IntoResponse {
+    let table = state.lock().unwrap();
+    let json: String = json_response_state_mean_by_category(&*table, &payload.question, &payload.state);
     (StatusCode::OK, json)
 }

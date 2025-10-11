@@ -8,7 +8,7 @@ use serde_json::{self, json};
 /// This is best-effort (cannot store String as const)
 
 const QUESTIONS_BEST_IS_MIN: &[&str] = &[
-    "Percent of adults aged 18 years and older who have an overweight) classification",
+    "Percent of adults aged 18 years and older who have an overweight classification",
     "Percent of adults aged 18 years and older who have obesity",
     "Percent of adults who engage in no leisure-time physical activity",
     "Percent of adults who report consuming fruit less than one time daily",
@@ -16,17 +16,17 @@ const QUESTIONS_BEST_IS_MIN: &[&str] = &[
 ];
 
 const QUESTIONS_BEST_IS_MAX: &[&str] = &[
-    "Percent of adults who achieve at least 150 minutes a week \"
+    "Percent of adults who achieve at least 150 minutes a week \
         of moderate-intensity aerobic physical activity \
         or 75 minutes a week of vigorous-intensity aerobic activity \
         (or an equivalent combination)",
     "Percent of adults who achieve at least 150 minutes a week \
-        of moderate-intensity aerobic physical activity 
+        of moderate-intensity aerobic physical activity \
         or 75 minutes a week of vigorous-intensity aerobic physical activity \
         and engage in muscle-strengthening activities on 2 or more days a week",
     "Percent of adults who achieve at least 300 minutes a week \
-        of moderate-intensity aerobic physical activity 
-        or 150 minutes a week of vigorous-intensity aerobic activity 
+        of moderate-intensity aerobic physical activity \
+        or 150 minutes a week of vigorous-intensity aerobic activity \
         (or an equivalent combination)",
     "Percent of adults who engage in muscle-strengthening activities \
         on 2 or more days a week"
@@ -141,18 +141,18 @@ fn compute_states_mean<'a>(table: &'a Table, question: &'a str) -> HashMap<&'a s
         let state: &str = &entry.location_desc;
 
         if let Some(value) = state_totals.get(state) {
-            // Key is in HashMap
+            // HashMap contains key
             state_totals.insert(&state , value + entry.data_value);
         } else {
-            // Key is NOT in HashMap
+            // HashMap does NOT contain key
             state_totals.insert(&state, 0.0);
         }
 
         if let Some(value) = state_counts.get(state) {
-            // Key is in HashMap
+            // HashMap contains key
             state_counts.insert(&state, value + 1);
         } else {
-            // Key is NOT in HashMap
+            // HashMap does NOT contain key
             state_counts.insert(&state, 0);
         }
     }
@@ -362,14 +362,138 @@ pub fn json_response_diff_from_mean(table: &Table, question: &str) -> String {
     let mut sorted: Vec<(&str, f32)> = diff_from_mean
         .into_iter()
         .collect();
+
     sorted.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
 
 
-    let diff_from_mean: HashMap<&str, f32> = sorted.into_iter().map(|(k, v)| (k.clone(), v)).collect();
+    let diff_from_mean: HashMap<&str, f32> = sorted.into_iter().map(|(k, v)| (k, v)).collect();
 
 
     serde_json::to_string(&diff_from_mean).unwrap()
 }
+
+
+
+fn get_category_priorities<'a>() -> HashMap<&'a str, u32> {
+    let mut category_priorities: HashMap<&str, u32> = HashMap::new();
+    category_priorities.insert(
+        "Age (years)",
+        1
+    );
+    category_priorities.insert(
+        "Education",
+        2
+    );
+    category_priorities.insert(
+        "Gender",
+        3
+    );
+    category_priorities.insert(
+        "Income",
+        4
+    );
+    category_priorities.insert(
+        "Race/Ethnicity",
+        5
+    );
+    category_priorities.insert(
+        "Total",
+        6
+    );
+
+    category_priorities
+}
+
+
+fn get_age_priorities<'a>() -> HashMap<&'a str, u32> {
+    let mut age_priorities: HashMap<&str, u32> = HashMap::new();
+    age_priorities.insert(
+        "18 - 24",
+        1
+    );
+    age_priorities.insert(
+        "25 - 34",
+        2
+    );
+    age_priorities.insert(
+        "35 - 44",
+        3
+    );
+    age_priorities.insert(
+        "45 - 54",
+        4
+    );
+    age_priorities.insert(
+        "55 - 64",
+        5
+    );
+    age_priorities.insert(
+        "65 or older",
+        6
+    );
+
+    age_priorities
+}
+
+
+fn get_education_priorities<'a>() -> HashMap<&'a str, u32> {
+    let mut education_priorities: HashMap<&str, u32> = HashMap::new();
+    education_priorities.insert(
+        "Less than high school",
+        1
+    );
+    education_priorities.insert(
+        "High school graduate",
+        2
+    );
+    education_priorities.insert(
+        "Some college or technical school",
+        3
+    );
+    education_priorities.insert(
+        "College graduate",
+        4
+    );
+
+    education_priorities
+}
+
+
+fn get_income_priorities<'a>() -> HashMap<&'a str, u32> {
+    let mut income_priorities: HashMap<&str, u32> = HashMap::new();
+    income_priorities.insert(
+        "Less than $15,000",
+        1
+    );
+    income_priorities.insert(
+        "$15,000 - $24,999",
+        2
+    );
+    income_priorities.insert(
+        "$25,000 - $34,999",
+        3
+    );
+    income_priorities.insert(
+        "$35,000 - $49,999",
+        4
+    );
+    income_priorities.insert(
+        "$50,000 - $74,999",
+        5
+    );
+    income_priorities.insert(
+        "$75,000 or greater",
+        6
+    );
+    income_priorities.insert(
+        "Data not reported",
+        7
+    );
+
+    income_priorities
+}
+
+
 
 
 pub fn json_response_mean_by_catagory(table: &Table, question: &str) -> String {
@@ -400,125 +524,126 @@ pub fn json_response_mean_by_catagory(table: &Table, question: &str) -> String {
 
 
         if let Some(value) = category_totals.get(&key) {
-            // Key is in HashMap
+            // HashMap contains key
             category_totals.insert(key.clone(), value + entry.data_value);
         } else {
-            // Key is NOT in HashMap
+            // HashMap does NOT contain key
             category_totals.insert(key.clone(), entry.data_value);
         }
 
         if let Some(value) = category_counts.get(&key) {
-            // Key is in HashMap
+            // HashMap contains key
             category_counts.insert(key.clone(), value + 1);
         } else {
-            // Key is NOT in HashMap
+            // HashMap does NOT contain key
             category_counts.insert(key.clone(), 1);
         }
     }
 
-    let mut category_priority: HashMap<&str, u32> = HashMap::new();
-    category_priority.insert(
-        "Age (years)",
-        1
-    );
-    category_priority.insert(
-        "Education",
-        2
-    );
-    category_priority.insert(
-        "Gender",
-        3
-    );
-    category_priority.insert(
-        "Income",
-        4
-    );
-    category_priority.insert(
-        "Race/Ethnicity",
-        5
-    );
-    category_priority.insert(
-        "Total",
-        6
-    );
 
-    let mut age_priority: HashMap<&str, u32> = HashMap::new();
-    age_priority.insert(
-        "18 - 24",
-        1
-    );
-    age_priority.insert(
-        "25 - 34",
-        2
-    );
-    age_priority.insert(
-        "35 - 44",
-        3
-    );
-    age_priority.insert(
-        "45 - 54",
-        4
-    );
-    age_priority.insert(
-        "55 - 64",
-        5
-    );
-    age_priority.insert(
-        "65 or older",
-        6
-    );
+    let mut category_means: HashMap<(&str, &str, &str), f32> = HashMap::new();
+
+    for (key, total) in category_totals.iter() {
+        category_means.insert(
+            *key,
+            total / *category_counts.get(key).unwrap() as f32
+        );
+    }
 
 
-    let mut education_priority: HashMap<&str, u32> = HashMap::new();
-    education_priority.insert(
-        "Less than high school",
-        1
-    );
-    education_priority.insert(
-        "High school graduate",
-        2
-    );
-    education_priority.insert(
-        "Some college or technical school",
-        3
-    );
-    education_priority.insert(
-        "College graduate",
-        4
-    );
+    let category_priorities: HashMap<&str, u32> = get_category_priorities();
+    let age_priorities: HashMap<&str, u32> = get_age_priorities();
+    let education_priorities: HashMap<&str, u32> = get_education_priorities();
+    let income_priorities: HashMap<&str, u32> = get_income_priorities();
 
-    let mut income_priority: HashMap<&str, u32> = HashMap::new();
-    income_priority.insert(
-        "Less than $15,000",
-        1
-    );
-    income_priority.insert(
-        "$15,000 - $24,999",
-        2
-    );
-    income_priority.insert(
-        "$25,000 - $34,999",
-        3
-    );
-    income_priority.insert(
-        "$35,000 - $49,999",
-        4
-    );
-    income_priority.insert(
-        "$50,000 - $74,999",
-        5
-    );
-    income_priority.insert(
-        "$75,000 or greater",
-        6
-    );
-    income_priority.insert(
-        "Data not reported",
-        7
-    );
+
+    let mut sorted: Vec<((&str, &str, &str), f32)> = category_means
+        .into_iter()
+        .collect();
+
 
 
     // TODO: continue it
     
     String::new()
+}
+
+
+
+
+pub fn json_response_state_mean_by_category(
+    table: &Table,
+    question: &str,
+    state: &str
+) -> String {
+    let selected_entries: Vec<&TableEntry> = table
+        .entries
+        .iter()
+        .filter(|entry| entry.question == question && entry.location_desc == state)
+        .collect();
+    
+
+    if selected_entries.is_empty() {
+        let mut response: HashMap<&str, &str> = HashMap::new();
+        response.insert(
+            "error",
+            "No data avialable for the given question and state"
+        );
+
+        return serde_json::to_string(&response).unwrap();
+    }
+
+
+    let mut category_totals: HashMap<(&str, &str), f32> = HashMap::new();
+    let mut category_counts: HashMap<(&str, &str), u32> = HashMap::new();
+
+    for entry in selected_entries {
+        let key: (&str, &str) = (
+            &entry.stratification_category1,
+            &entry.stratification1
+        );
+
+        if let Some(value) = category_totals.get(&key) {
+            // HashMap contains key
+            category_totals.insert(
+                key.clone(),
+                value + entry.data_value
+            );
+        } else {
+            // HashMap does NOT contain key
+            category_totals.insert(
+                key.clone(),
+                entry.data_value
+            );
+        }
+
+
+        if let Some(value) = category_counts.get(&key) {
+            // HashMap contains key
+            category_counts.insert(
+                key.clone(),
+                value + 1
+            );
+        } else {
+            // HashMap does NOT contain key
+            category_counts.insert(
+                key.clone(),
+                1
+            );
+        }
+    }
+
+
+    let mut category_means: HashMap<(&str, &str), f32> = HashMap::new();
+    for (key, total) in category_totals.iter() {
+        category_means.insert(
+            *key,
+            total / *category_counts.get(key).unwrap() as f32
+        );
+    }
+
+
+    // TODO: continue
+
+    serde_json::to_string(&category_means).unwrap()
 }

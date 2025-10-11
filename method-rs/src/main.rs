@@ -24,9 +24,9 @@ async fn main() {
 
     let app: Router = app();
 
-    let addr = SocketAddr::from_str("0.0.0.0:8080").unwrap();
+    let addr = SocketAddr::from_str("0.0.0.0:8000").unwrap();
     let listener = TcpListener::bind(addr).await.unwrap();
 
-    println!("Listening on 0.0.0.0:8080");
+    println!("Listening on 0.0.0.0:8000");
     axum::serve(listener, app).await.unwrap();
 }
