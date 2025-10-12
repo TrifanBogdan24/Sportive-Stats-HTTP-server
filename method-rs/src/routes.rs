@@ -8,37 +8,40 @@ use axum::{
     routing::{get, post},
 };
 
-use crate::{data_ingestor::{
-    json_response_best5, json_response_diff_from_mean, json_response_global_mean, json_response_state_mean, json_response_state_mean_by_category, json_response_states_mean, json_response_worst5, load_csv, Table
-}, thread_pool};
+use serde::{Deserialize, Serialize};
 
 
-use serde::Deserialize;
+use crate::thread_pool;
 
-use crate::thread_pool::ThreadPool;
+use crate::thread_pool::{ThreadPool, JobManager};
+
+use crate::request_type::RequestType;
 
 
-#[derive(Deserialize)]
-struct QuestionRequest {
+#[derive(Serialize, Deserialize)]
+pub struct QuestionRequest {
     question: String,
 }
 
-#[derive(Deserialize)]
-struct QuestionStateRequest {
+#[derive(Serialize, Deserialize)]
+pub struct QuestionStateRequest {
     question: String,
     state: String,
 }
 
 
-struct AppState {
-    table: Mutex<Table>,
-    thread_pool: ThreadPool
+#[derive(Serialize)]
+struct JobResponse {
+    job_id: u32,
 }
 
-pub fn http_server(table: Table, thread_pool: ThreadPool) -> Router {
+struct AppState {
+    jobs: JobManager
+}
+
+pub fn http_server(jobs: JobManager) -> Router {
     let app_state = AppState {
-        table: Mutex::new(table),
-        thread_pool,
+        jobs
     };
 
     let state: Arc<AppState> = Arc::new(app_state);
@@ -58,62 +61,82 @@ async fn request_states_mean(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<QuestionRequest>,
 ) -> impl IntoResponse {
-    let table = state.table.lock().unwrap();
-    let json: String = json_response_states_mean(&*table, &payload.question);
-    (StatusCode::OK, json)
+    let job_id: u32 = state.jobs.add_job(
+        RequestType::STATES_MEAN,
+        &serde_json::to_string(&payload).unwrap()
+    );
+    let response = JobResponse { job_id };
+    (StatusCode::OK, Json(response))
 }
 
 async fn request_state_mean(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<QuestionStateRequest>,
 ) -> impl IntoResponse {
-    let table = state.table.lock().unwrap();
-    let json: String = json_response_state_mean(&*table, &payload.question, &payload.state);
-    (StatusCode::OK, json)
+    let job_id: u32 = state.jobs.add_job(
+        RequestType::STATE_MEAN,
+        &serde_json::to_string(&payload).unwrap()
+    );
+    let response = JobResponse { job_id };
+    (StatusCode::OK, Json(response))
 }
 
 async fn request_best5(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<QuestionRequest>,
 ) -> impl IntoResponse {
-    let table = state.table.lock().unwrap();
-    let json: String = json_response_best5(&*table, &payload.question);
-    (StatusCode::OK, json)
+    let job_id: u32 = state.jobs.add_job(
+        RequestType::BEST_5,
+        &serde_json::to_string(&payload).unwrap()
+    );
+    let response = JobResponse { job_id };
+    (StatusCode::OK, Json(response))
 }
 
 async fn request_worst5(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<QuestionRequest>,
 ) -> impl IntoResponse {
-    let table = state.table.lock().unwrap();
-    let json: String = json_response_worst5(&*table, &payload.question);
-    (StatusCode::OK, json)
+    let job_id: u32 = state.jobs.add_job(
+        RequestType::WORST_5,
+        &serde_json::to_string(&payload).unwrap()
+    );
+    let response = JobResponse { job_id };
+    (StatusCode::OK, Json(response))
 }
 
 async fn request_global_mean(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<QuestionRequest>,
 ) -> impl IntoResponse {
-    let table = state.table.lock().unwrap();
-    let json: String = json_response_global_mean(&*table, &payload.question);
-    (StatusCode::OK, json)
+    let job_id: u32 = state.jobs.add_job(
+        RequestType::GLOBAL_MEAN,
+        &serde_json::to_string(&payload).unwrap()
+    );
+    let response = JobResponse { job_id };
+    (StatusCode::OK, Json(response))
 }
 
 async fn request_diff_from_mean(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<QuestionRequest>,
 ) -> impl IntoResponse {
-    let table = state.table.lock().unwrap();
-    let json: String = json_response_diff_from_mean(&*table, &payload.question);
-    (StatusCode::OK, json)
+    let job_id: u32 = state.jobs.add_job(
+        RequestType::DIFF_FROM_MEAN,
+        &serde_json::to_string(&payload).unwrap()
+    );
+    let response = JobResponse { job_id };
+    (StatusCode::OK, Json(response))
 }
 
 async fn request_state_mean_by_category(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<QuestionStateRequest>,
 ) -> impl IntoResponse {
-    let table = state.table.lock().unwrap();
-    let json: String =
-        json_response_state_mean_by_category(&*table, &payload.question, &payload.state);
-    (StatusCode::OK, json)
+    let job_id: u32 = state.jobs.add_job(
+        RequestType::MEAN_BY_CATEGORY,
+        &serde_json::to_string(&payload).unwrap()
+    );
+    let response = JobResponse { job_id };
+    (StatusCode::OK, Json(response))
 }

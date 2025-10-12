@@ -1,24 +1,37 @@
 use std::sync::{Arc, Mutex, Condvar};
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::thread;
 use std::collections::VecDeque;
 use std::env;
 
+use crate::request_type::RequestType;
+
+
+use crate::data_ingestor::{
+    json_response_best5, json_response_diff_from_mean, json_response_global_mean, json_response_state_mean, json_response_state_mean_by_category, json_response_states_mean, json_response_worst5, load_csv, Table
+};
+use crate::routes::QuestionRequest;
+
 type Job = Box<dyn FnOnce() + Send + 'static>;
 
 pub struct ThreadPool {
+    table: Mutex<Table>,
     workers: Vec<TaskRunner>,
     queue: Arc<(Mutex<VecDeque<Job>>, Condvar)>,
     shutdown: Arc<Mutex<bool>>,
 }
 
 impl ThreadPool {
-    pub fn new() -> Self {
+    /// Create a new ThreadPool
+    pub fn new(table: Table) -> Self {
+        
+
         let num_threads: usize = match env::var("TP_NUM_OF_THREADS") {
             Ok(value) => match value.parse::<usize>() {
                 Ok(num_threads) => num_threads,
-                _ => num_cpus::get(), // fallback dacă parse e invalid
+                _ => num_cpus::get(),
             },
-            _ => num_cpus::get(), // fallback dacă variabila de mediu nu există
+            _ => num_cpus::get(),
         };
         
         let queue = Arc::new((Mutex::new(VecDeque::new()), Condvar::new()));
@@ -35,25 +48,34 @@ impl ThreadPool {
 
 
         println!("Starting thread pool with {} runners", num_threads);
-        ThreadPool { workers, queue, shutdown }
+        ThreadPool {
+            table: Mutex::new(table),
+            workers,
+            queue,
+            shutdown
+        }
     }
 
-    pub fn execute<F>(&self, f: F)
+    /// Submit a new task to the pool
+    pub fn execute<F>(&self, func: F)
     where
         F: FnOnce() + Send + 'static,
     {
-        let (lock, cvar) = &*self.queue;
-        let mut q = lock.lock().unwrap();
-        q.push_back(Box::new(f));
-        cvar.notify_one(); // trezește un worker
+        let (lock, cond_var) = &*self.queue;
+        let mut queue = lock.lock().unwrap();
+        queue.push_back(Box::new(func));
+        // Wake up an worker:
+        cond_var.notify_one();
     }
 
-    /// Trimite semnalul de închidere; pool-ul va rula toate job-urile existente înainte de a se închide
+    /// Send shutdown signal: Thread Pool will run all remaining jobs (after which Thread Pool stops)
     pub fn shutdown(&self) {
         let mut flag = self.shutdown.lock().unwrap();
         *flag = true;
-        self.queue.1.notify_all(); // trezește toți workerii
+        // Wake up all workers:
+        self.queue.1.notify_all();
     }
+
 }
 
 
@@ -67,15 +89,15 @@ impl TaskRunner {
         let thread = thread::spawn(move || {
             loop {
                 let job_opt = {
-                    let (lock, cvar) = &*queue;
+                    let (lock, cond_var) = &*queue;
                     let mut q = lock.lock().unwrap();
 
-                    // Așteaptă job dacă coada e goală
+                    // Wait for a job if queue is empty
                     while q.is_empty() && !*shutdown.lock().unwrap() {
-                        q = cvar.wait(q).unwrap();
+                        q = cond_var.wait(q).unwrap();
                     }
 
-                    // Dacă coada e goală și shutdown este true, ieșim
+                    // If queue is empty and received shutdown -> stop the worker
                     if q.is_empty() && *shutdown.lock().unwrap() {
                         break;
                     }
@@ -93,5 +115,46 @@ impl TaskRunner {
         });
 
         TaskRunner { id, thread: Some(thread) }
+    }
+}
+
+
+
+pub struct JobManager {
+    next_id: Arc<AtomicU32>,
+    pool: Arc<ThreadPool>,
+}
+
+
+impl JobManager {
+    pub fn new(pool: Arc<ThreadPool>) -> Self {
+        Self {
+            next_id: Arc::new(AtomicU32::new(1)),
+            pool,
+        }
+    }
+
+    pub fn add_job(&self, request_type: RequestType, json_request: &str) -> u32 {
+        // Generate unique job ID
+        let job_id = self.next_id.fetch_add(1, Ordering::SeqCst);
+
+        // Clone anything needed for the async closure
+        let req_type = request_type.clone();
+        let req_data = json_request.to_string();
+
+        self.pool.execute(move || {
+            println!("[Job #{job_id}] Starting : {:}", request_type.as_str());
+            
+            match request_type {
+                RequestType::BEST_5 => {
+                    // TODO:
+                }
+                _ => ()
+            }
+
+            println!("[Job #{job_id}] Finished");
+        });
+
+        job_id
     }
 }
