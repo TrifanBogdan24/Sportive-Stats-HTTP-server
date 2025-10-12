@@ -20,13 +20,13 @@ use crate::request_type::RequestType;
 
 #[derive(Serialize, Deserialize)]
 pub struct QuestionRequest {
-    question: String,
+    pub question: String,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct QuestionStateRequest {
-    question: String,
-    state: String,
+    pub question: String,
+    pub state: String,
 }
 
 
@@ -53,7 +53,7 @@ pub fn http_server(jobs: JobManager) -> Router {
         .route("/api/worst5", post(request_worst5))
         .route("/api/global_mean", post(request_global_mean))
         .route("/api/diff_from_mean", post(request_diff_from_mean))
-        .route("/api/state_mean_by_category",post(request_state_mean_by_category))
+        .route("/api/state_mean_by_category", post(request_state_mean_by_category))
         .with_state(state)
 }
 

@@ -8,9 +8,9 @@ use crate::request_type::RequestType;
 
 
 use crate::data_ingestor::{
-    json_response_best5, json_response_diff_from_mean, json_response_global_mean, json_response_state_mean, json_response_state_mean_by_category, json_response_states_mean, json_response_worst5, load_csv, Table
+    json_response_best5, json_response_diff_from_mean, json_response_global_mean, json_response_mean_by_catagory, json_response_state_mean, json_response_state_mean_by_category, json_response_states_mean, json_response_worst5, load_csv, Table
 };
-use crate::routes::QuestionRequest;
+use crate::routes::{QuestionRequest, QuestionStateRequest};
 
 type Job = Box<dyn FnOnce() + Send + 'static>;
 
@@ -122,15 +122,15 @@ impl TaskRunner {
 
 pub struct JobManager {
     next_id: Arc<AtomicU32>,
-    pool: Arc<ThreadPool>,
+    thread_pool: Arc<ThreadPool>,
 }
 
 
 impl JobManager {
-    pub fn new(pool: Arc<ThreadPool>) -> Self {
+    pub fn new(thread_pool: Arc<ThreadPool>) -> Self {
         Self {
             next_id: Arc::new(AtomicU32::new(1)),
-            pool,
+            thread_pool,
         }
     }
 
@@ -142,13 +142,78 @@ impl JobManager {
         let req_type = request_type.clone();
         let req_data = json_request.to_string();
 
-        self.pool.execute(move || {
+
+        let thread_pool = Arc::clone(&self.thread_pool);
+
+        self.thread_pool.execute(move || {
             println!("[Job #{job_id}] Starting : {:}", request_type.as_str());
             
             match request_type {
+                RequestType::STATES_MEAN => {
+                    let table = thread_pool.table.lock().unwrap();
+                    let query: QuestionRequest = serde_json::from_str(&req_data).unwrap();
+                    let json_response = json_response_states_mean(&table, &query.question);
+
+                    // TODO: write in results/<job_id>.json and log time
+                    println!("{:}", json_response);
+                },
+                RequestType::STATE_MEAN => {
+                    let table = thread_pool.table.lock().unwrap();
+                    let query: QuestionStateRequest = serde_json::from_str(&req_data).unwrap();
+                    let json_response = json_response_state_mean(&table, &query.question, &query.state);
+
+                    // TODO: write in results/<job_id>.json and log time
+                    println!("{:}", json_response);
+                },
                 RequestType::BEST_5 => {
-                    // TODO:
-                }
+                    let table = thread_pool.table.lock().unwrap();
+                    let query: QuestionRequest = serde_json::from_str(&req_data).unwrap();
+                    let json_response = json_response_best5(&table, &query.question);
+
+                    // TODO: write in results/<job_id>.json and log time
+                    println!("{:}", json_response);
+                },
+                RequestType::WORST_5 => {
+                    let table = thread_pool.table.lock().unwrap();
+                    let query: QuestionRequest = serde_json::from_str(&req_data).unwrap();
+                    let json_response = json_response_worst5(&table, &query.question);
+
+                    // TODO: write in results/<job_id>.json and log time
+                    println!("{:}", json_response);
+                },
+                RequestType::GLOBAL_MEAN => {
+                    let table = thread_pool.table.lock().unwrap();
+                    let query: QuestionRequest = serde_json::from_str(&req_data).unwrap();
+                    let json_response = json_response_global_mean(&table, &query.question);
+
+                    // TODO: write in results/<job_id>.json and log time
+                    println!("{:}", json_response);
+                },
+                RequestType::DIFF_FROM_MEAN => {
+                    let table = thread_pool.table.lock().unwrap();
+                    let query: QuestionRequest = serde_json::from_str(&req_data).unwrap();
+                    let json_response = json_response_diff_from_mean(&table, &query.question);
+
+                    // TODO: write in results/<job_id>.json and log time
+                    println!("{:}", json_response);
+                },
+                RequestType::MEAN_BY_CATEGORY => {
+                    let table = thread_pool.table.lock().unwrap();
+                    let query: QuestionRequest = serde_json::from_str(&req_data).unwrap();
+                    let json_response = json_response_mean_by_catagory(&table, &query.question);
+
+                    // TODO: write in results/<job_id>.json and log time
+                    println!("{:}", json_response);
+                },
+                RequestType::STATE_MEAN_BY_CATEGORY => {
+                    let table = thread_pool.table.lock().unwrap();
+                    let query: QuestionStateRequest = serde_json::from_str(&req_data).unwrap();
+                    let json_response = json_response_state_mean_by_category(&table, &query.question, &query.state);
+
+                    // TODO: write in results/<job_id>.json and log time
+                    println!("{:}", json_response);
+                },
+
                 _ => ()
             }
 
