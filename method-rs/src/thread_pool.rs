@@ -17,6 +17,8 @@ use crate::routes::{QuestionRequest, QuestionStateRequest};
 
 use crate::concurrent_hash_map::ConcurrentHashMap;
 
+use crate::logger::{LogType, print_log};
+
 type Job = Box<dyn FnOnce() + Send + 'static>;
 
 pub struct ThreadPool {
@@ -52,7 +54,8 @@ impl ThreadPool {
         }
 
 
-        println!("Starting thread pool with {} runners", num_threads);
+        print_log(LogType::Info, &format!("Starting thread pool with {} runners", num_threads));
+
         ThreadPool {
             table: Mutex::new(table),
             workers,
@@ -111,12 +114,12 @@ impl TaskRunner {
                 };
 
                 if let Some(job) = job_opt {
-                    println!("Worker {} executing job...", id);
+                    // Worker <id> executing job
                     job();
                 }
             }
 
-            println!("Worker {} shutting down.", id);
+            // Worker <id> is shutting down
         });
 
         TaskRunner { id, thread: Some(thread) }
@@ -168,78 +171,90 @@ impl JobManager {
         let thread_pool = Arc::clone(&self.thread_pool);
 
         self.thread_pool.execute(move || {
-            println!("[Job #{job_id}] Starting : {:}", request_type.as_str());
-            
             match request_type {
                 RequestType::STATES_MEAN => {
                     let table = thread_pool.table.lock().unwrap();
                     let query: QuestionRequest = serde_json::from_str(&req_data).unwrap();
                     let json_response = json_response_states_mean(&table, &query.question);
 
-                    // TODO: write in results/<job_id>.json and log time
+                    // Write in results/<job_id>.json and log time
                     fwrite_job_result(job_id, &json_response);
+                    print_log(LogType::Info, &format!("Response for job_id={} was computed and can be found at \"./results/{}.json\"",
+                        job_id, job_id));
                 },
                 RequestType::STATE_MEAN => {
                     let table = thread_pool.table.lock().unwrap();
                     let query: QuestionStateRequest = serde_json::from_str(&req_data).unwrap();
                     let json_response = json_response_state_mean(&table, &query.question, &query.state);
 
-                    // TODO: write in results/<job_id>.json and log time
+                    // Write in results/<job_id>.json and log time
                     fwrite_job_result(job_id, &json_response);
+                    print_log(LogType::Info, &format!("Response for job_id={} was computed and can be found at \"./results/{}.json\"",
+                        job_id, job_id));
                 },
                 RequestType::BEST_5 => {
                     let table = thread_pool.table.lock().unwrap();
                     let query: QuestionRequest = serde_json::from_str(&req_data).unwrap();
                     let json_response = json_response_best5(&table, &query.question);
 
-                    // TODO: write in results/<job_id>.json and log time
+                    // Write in results/<job_id>.json and log time
                     fwrite_job_result(job_id, &json_response);
+                    print_log(LogType::Info, &format!("Response for job_id={} was computed and can be found at \"./results/{}.json\"",
+                        job_id, job_id));
                 },
                 RequestType::WORST_5 => {
                     let table = thread_pool.table.lock().unwrap();
                     let query: QuestionRequest = serde_json::from_str(&req_data).unwrap();
                     let json_response = json_response_worst5(&table, &query.question);
 
-                    // TODO: write in results/<job_id>.json and log time
+                    // Write in results/<job_id>.json and log time
                     fwrite_job_result(job_id, &json_response);
+                    print_log(LogType::Info, &format!("Response for job_id={} was computed and can be found at \"./results/{}.json\"",
+                        job_id, job_id));
                 },
                 RequestType::GLOBAL_MEAN => {
                     let table = thread_pool.table.lock().unwrap();
                     let query: QuestionRequest = serde_json::from_str(&req_data).unwrap();
                     let json_response = json_response_global_mean(&table, &query.question);
 
-                    // TODO: write in results/<job_id>.json and log time
+                    // Write in results/<job_id>.json and log time
                     fwrite_job_result(job_id, &json_response);
+                    print_log(LogType::Info, &format!("Response for job_id={} was computed and can be found at \"./results/{}.json\"",
+                        job_id, job_id));
                 },
                 RequestType::DIFF_FROM_MEAN => {
                     let table = thread_pool.table.lock().unwrap();
                     let query: QuestionRequest = serde_json::from_str(&req_data).unwrap();
                     let json_response = json_response_diff_from_mean(&table, &query.question);
 
-                    // TODO: write in results/<job_id>.json and log time
+                    // Write in results/<job_id>.json and log time
                     fwrite_job_result(job_id, &json_response);
+                    print_log(LogType::Info, &format!("Response for job_id={} was computed and can be found at \"./results/{}.json\"",
+                        job_id, job_id));
                 },
                 RequestType::MEAN_BY_CATEGORY => {
                     let table = thread_pool.table.lock().unwrap();
                     let query: QuestionRequest = serde_json::from_str(&req_data).unwrap();
                     let json_response = json_response_mean_by_catagory(&table, &query.question);
 
-                    // TODO: write in results/<job_id>.json and log time
+                    // Write in results/<job_id>.json and log time
                     fwrite_job_result(job_id, &json_response);
+                    print_log(LogType::Info, &format!("Response for job_id={} was computed and can be found at \"./results/{}.json\"",
+                        job_id, job_id));
                 },
                 RequestType::STATE_MEAN_BY_CATEGORY => {
                     let table = thread_pool.table.lock().unwrap();
                     let query: QuestionStateRequest = serde_json::from_str(&req_data).unwrap();
                     let json_response = json_response_state_mean_by_category(&table, &query.question, &query.state);
 
-                    // TODO: write in results/<job_id>.json and log time
+                    // Write in results/<job_id>.json and log time
                     fwrite_job_result(job_id, &json_response);
+                    print_log(LogType::Info, &format!("Response for job_id={} was computed and can be found at \"./results/{}.json\"",
+                        job_id, job_id));
                 },
 
                 _ => ()
             }
-
-            println!("[Job #{job_id}] Finished");
         });
 
         job_id

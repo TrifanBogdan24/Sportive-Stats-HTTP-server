@@ -14,8 +14,8 @@ pub fn print_log(log_type: LogType, msg: &str) {
     let fmt_time = time_now.format(TIME_FORMAT).to_string();
 
     match log_type {
-        LogType::Info => println!("{:} - INFO - {:}", fmt_time, msg),
-        LogType::Error => println!("{:} - ERROR - {:}", fmt_time, msg),
+        LogType::Info => println!("{:} UTC - INFO - {:}", fmt_time, msg),
+        LogType::Error => println!("{:} UTC - ERROR - {:}", fmt_time, msg),
     }
 }
 
