@@ -3,6 +3,9 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::thread;
 use std::collections::VecDeque;
 use std::env;
+use std::path::Path;
+use std::fs::{File};
+use std::io::{BufWriter, Write};
 
 use crate::request_type::RequestType;
 
@@ -11,6 +14,8 @@ use crate::data_ingestor::{
     json_response_best5, json_response_diff_from_mean, json_response_global_mean, json_response_mean_by_catagory, json_response_state_mean, json_response_state_mean_by_category, json_response_states_mean, json_response_worst5, load_csv, Table
 };
 use crate::routes::{QuestionRequest, QuestionStateRequest};
+
+use crate::concurrent_hash_map::ConcurrentHashMap;
 
 type Job = Box<dyn FnOnce() + Send + 'static>;
 
@@ -126,6 +131,19 @@ pub struct JobManager {
 }
 
 
+
+fn fwrite_job_result(job_id: u32, json_response: &str) {
+    // TODO: add mutex mechanism
+    let filename = format!("./results/{}.json", job_id);
+    let path = Path::new(&filename);
+
+    let file_out = File::create(path).unwrap();
+    let mut writer = BufWriter::new(file_out);
+
+    writeln!(writer, "{}", json_response).unwrap();
+    writer.flush().unwrap();
+}
+
 impl JobManager {
     pub fn new(thread_pool: Arc<ThreadPool>) -> Self {
         Self {
@@ -133,6 +151,10 @@ impl JobManager {
             thread_pool,
         }
     }
+
+
+
+
 
     pub fn add_job(&self, request_type: RequestType, json_request: &str) -> u32 {
         // Generate unique job ID
@@ -155,7 +177,7 @@ impl JobManager {
                     let json_response = json_response_states_mean(&table, &query.question);
 
                     // TODO: write in results/<job_id>.json and log time
-                    println!("{:}", json_response);
+                    fwrite_job_result(job_id, &json_response);
                 },
                 RequestType::STATE_MEAN => {
                     let table = thread_pool.table.lock().unwrap();
@@ -163,7 +185,7 @@ impl JobManager {
                     let json_response = json_response_state_mean(&table, &query.question, &query.state);
 
                     // TODO: write in results/<job_id>.json and log time
-                    println!("{:}", json_response);
+                    fwrite_job_result(job_id, &json_response);
                 },
                 RequestType::BEST_5 => {
                     let table = thread_pool.table.lock().unwrap();
@@ -171,7 +193,7 @@ impl JobManager {
                     let json_response = json_response_best5(&table, &query.question);
 
                     // TODO: write in results/<job_id>.json and log time
-                    println!("{:}", json_response);
+                    fwrite_job_result(job_id, &json_response);
                 },
                 RequestType::WORST_5 => {
                     let table = thread_pool.table.lock().unwrap();
@@ -179,7 +201,7 @@ impl JobManager {
                     let json_response = json_response_worst5(&table, &query.question);
 
                     // TODO: write in results/<job_id>.json and log time
-                    println!("{:}", json_response);
+                    fwrite_job_result(job_id, &json_response);
                 },
                 RequestType::GLOBAL_MEAN => {
                     let table = thread_pool.table.lock().unwrap();
@@ -187,7 +209,7 @@ impl JobManager {
                     let json_response = json_response_global_mean(&table, &query.question);
 
                     // TODO: write in results/<job_id>.json and log time
-                    println!("{:}", json_response);
+                    fwrite_job_result(job_id, &json_response);
                 },
                 RequestType::DIFF_FROM_MEAN => {
                     let table = thread_pool.table.lock().unwrap();
@@ -195,7 +217,7 @@ impl JobManager {
                     let json_response = json_response_diff_from_mean(&table, &query.question);
 
                     // TODO: write in results/<job_id>.json and log time
-                    println!("{:}", json_response);
+                    fwrite_job_result(job_id, &json_response);
                 },
                 RequestType::MEAN_BY_CATEGORY => {
                     let table = thread_pool.table.lock().unwrap();
@@ -203,7 +225,7 @@ impl JobManager {
                     let json_response = json_response_mean_by_catagory(&table, &query.question);
 
                     // TODO: write in results/<job_id>.json and log time
-                    println!("{:}", json_response);
+                    fwrite_job_result(job_id, &json_response);
                 },
                 RequestType::STATE_MEAN_BY_CATEGORY => {
                     let table = thread_pool.table.lock().unwrap();
@@ -211,7 +233,7 @@ impl JobManager {
                     let json_response = json_response_state_mean_by_category(&table, &query.question, &query.state);
 
                     // TODO: write in results/<job_id>.json and log time
-                    println!("{:}", json_response);
+                    fwrite_job_result(job_id, &json_response);
                 },
 
                 _ => ()

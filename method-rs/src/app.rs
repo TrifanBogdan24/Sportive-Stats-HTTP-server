@@ -3,6 +3,8 @@ mod routes;
 mod request_type;
 mod thread_pool;
 mod logger;
+mod concurrent_hash_map;
+
 
 use std::{net::SocketAddr, str::FromStr, fs};
 use tokio::net::TcpListener;
