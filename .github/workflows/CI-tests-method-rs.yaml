@@ -40,6 +40,10 @@ jobs:
           source .venv/bin/activate
           pip3 install -r requirements.txt
 
+      - name: Compile Source Code
+        working-directory: ./method-rs
+        run: cargo build
+
       - name: Start Server & Run Tests
         working-directory: ./method-rs
         run: |
@@ -49,7 +53,8 @@ jobs:
 
           echo "Server started with PID $SERVER_PID"
           # wait a few seconds to make sure it’s up
-          sleep 5
+          # compiling takes a while...
+          sleep 30
 
           # Run tests in the same shell (like tmux pane 2)
           cd ../checker/
@@ -59,3 +64,8 @@ jobs:
           # Cleanup
           echo "Stopping server..."
           kill $SERVER_PID
+        
+      - name: Check Coding Style
+        if: always()
+        working-directory: ./method-rs
+        run: cargo fmt --check
