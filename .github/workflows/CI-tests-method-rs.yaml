@@ -1,4 +1,4 @@
-name: Run (tmux-like) Tests on Flask server built in python
+name: Run (tmux-like) Tests on Axum server built in rust
 
 on:
   push:
@@ -24,24 +24,27 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Install Rust 🦀 (stable)
+        # actions-rs/toolchain@v1 is now deprecated
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: 📥 Install dependencies
-        working-directory: ./method-py
+      - name: Install Python dependencies
+        working-directory: ./checker
         run: |
           python3 -m venv .venv
           source .venv/bin/activate
           pip3 install -r requirements.txt
 
       - name: Start Server & Run Tests
-        working-directory: ./method-py
+        working-directory: ./method-rs
         run: |
           # Start server in background (like tmux pane 1)
-          source .venv/bin/activate
-          make run_server &
+          cargo run &
           SERVER_PID=$!
 
           echo "Server started with PID $SERVER_PID"
@@ -49,7 +52,9 @@ jobs:
           sleep 5
 
           # Run tests in the same shell (like tmux pane 2)
-          make run_tests
+          cd ../checker/
+          source .venv/bin/activate
+          python3 checker.py 
 
           # Cleanup
           echo "Stopping server..."

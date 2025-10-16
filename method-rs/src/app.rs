@@ -52,11 +52,11 @@ async fn main() {
     let jobs = JobManager::new(Arc::new(thread_pool).clone());
 
     let server: Router = http_server(jobs);
-    let addr = SocketAddr::from_str("0.0.0.0:8000").unwrap();
+    let addr = SocketAddr::from_str("0.0.0.0:5000").unwrap();
 
     print_log(
         LogType::Info,
-        "Axum HTTP server is listening on 0.0.0.0:8000",
+        "Axum HTTP server is listening on 0.0.0.0:5000",
     );
     axum::serve(
         tokio::net::TcpListener::bind(addr).await.unwrap(),
