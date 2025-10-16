@@ -4,8 +4,8 @@
     "body": {
         "mimeType": "No Body"
     },
-    "url": "http://127.0.0.1:5000/api/jobs",
-    "sortOrder": 10,
+    "url": "http://127.0.0.1:5000/api/get_results/1",
+    "sortOrder": 12,
     "parameters": [],
     "pathParameters": []
 }

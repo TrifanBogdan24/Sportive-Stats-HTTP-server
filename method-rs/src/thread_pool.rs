@@ -73,6 +73,7 @@ impl ThreadPool {
         }
     }
 
+
     /// Submit a new task to the pool
     pub fn execute<F>(&self, func: F)
     where
@@ -91,6 +92,11 @@ impl ThreadPool {
         *flag = true;
         // Wake up all workers:
         self.queue.1.notify_all();
+    }
+
+
+    pub fn is_shutdown(&self) -> bool {
+        self.shutdown.lock().unwrap().clone()
     }
 }
 
@@ -154,8 +160,6 @@ pub struct JobManager {
 
 
 
-
-
 impl JobManager {
     pub fn new(thread_pool: Arc<ThreadPool>) -> Self {
         Self {
@@ -165,7 +169,12 @@ impl JobManager {
         }
     }
 
-    pub fn shutdown_thred_pool(&self) {
+
+    pub fn is_thread_pool_shut_down(&self) -> bool {
+        self.thread_pool.is_shutdown()
+    }
+
+    pub fn shutdown_thread_pool(&self) {
         self.thread_pool.shutdown();
     }
 

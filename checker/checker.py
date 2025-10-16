@@ -12,6 +12,7 @@ try:
 except:
     from StringIO import StringIO
 
+
 import pylint.lint
 
 from deepdiff import DeepDiff
@@ -25,7 +26,6 @@ PYLINT_LOCAL_DEBUG = True
 START_TIMESTAMP = datetime.now()
 GLOBAL_TIMEOUT_MINUTES = 5
 GLOBAL_TIMEOUT_SECONDS = GLOBAL_TIMEOUT_MINUTES * 60
-
 class TestAPI(unittest.TestCase):
     def check_global_timeout(self):
         current_timestamp = datetime.now()

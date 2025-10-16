@@ -1,4 +1,5 @@
 use std::net::SocketAddr;
+use std::os::linux::raw::stat;
 use std::sync::{Arc, Mutex};
 
 use axum::extract::Path;
@@ -30,10 +31,6 @@ pub struct QuestionStateRequest {
     pub state: String,
 }
 
-#[derive(Serialize)]
-struct JobResponse {
-    job_id: u32,
-}
 
 struct AppState {
     jobs: JobManager,
@@ -56,16 +53,26 @@ pub fn http_server(jobs: JobManager) -> Router {
         )
         .route("/api/graceful_shutdown", get(graceful_shutdown))
         .route("/api/jobs", get(get_jobs_status))
+        .route("/api/num_jobs", get(get_num_pending_jobs))
         .route("/api/get_results/{job_id}", get(get_job_result))
         .with_state(state)
 }
 
-pub fn log_received_request(request_type: RequestType, addr: &SocketAddr) {
+
+fn responde_with_server_shutdown_error() -> (StatusCode, Json<serde_json::Value>) {
+    let response = serde_json::json!({
+        "status": "error",
+        "reason": "server is already shut down"
+    });
+    (StatusCode::METHOD_NOT_ALLOWED, Json(response))
+}
+
+pub fn log_received_request(request_name: &str, addr: &SocketAddr) {
     print_log(
         LogType::Info,
         &format!(
             "Received {:?} request from {}",
-            request_type.as_str(),
+            request_name,
             addr.ip()
         ),
     );
@@ -96,14 +103,21 @@ async fn request_states_mean(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     Json(payload): Json<QuestionRequest>,
 ) -> impl IntoResponse {
-    log_received_request(RequestType::STATES_MEAN, &addr);
+    log_received_request(RequestType::STATES_MEAN.as_str(), &addr);
+
+    if state.jobs.is_thread_pool_shut_down() {
+        return responde_with_server_shutdown_error();
+    }
+
     let json_request = serde_json::to_string(&payload).unwrap();
 
     let job_id: u32 = state.jobs.add_job(RequestType::STATES_MEAN, &json_request);
 
     log_added_job_in_thread_pool(RequestType::STATES_MEAN, &addr, job_id, &json_request);
 
-    let response = JobResponse { job_id };
+    let response = serde_json::json!({
+        "job_id": job_id
+    });
     (StatusCode::OK, Json(response))
 }
 
@@ -112,14 +126,21 @@ async fn request_state_mean(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     Json(payload): Json<QuestionStateRequest>,
 ) -> impl IntoResponse {
-    log_received_request(RequestType::STATE_MEAN, &addr);
+    log_received_request(RequestType::STATE_MEAN.as_str(), &addr);
+
+    if state.jobs.is_thread_pool_shut_down() {
+        return responde_with_server_shutdown_error();
+    }
+
     let json_request = serde_json::to_string(&payload).unwrap();
 
     let job_id: u32 = state.jobs.add_job(RequestType::STATE_MEAN, &json_request);
 
     log_added_job_in_thread_pool(RequestType::STATE_MEAN, &addr, job_id, &json_request);
 
-    let response = JobResponse { job_id };
+    let response = serde_json::json!({
+        "job_id": job_id
+    });
     (StatusCode::OK, Json(response))
 }
 
@@ -128,14 +149,21 @@ async fn request_best5(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     Json(payload): Json<QuestionRequest>,
 ) -> impl IntoResponse {
-    log_received_request(RequestType::BEST_5, &addr);
+    log_received_request(RequestType::BEST_5.as_str(), &addr);
+
+    if state.jobs.is_thread_pool_shut_down() {
+        return responde_with_server_shutdown_error();
+    }
+
     let json_request = serde_json::to_string(&payload).unwrap();
 
     let job_id: u32 = state.jobs.add_job(RequestType::BEST_5, &json_request);
 
     log_added_job_in_thread_pool(RequestType::BEST_5, &addr, job_id, &json_request);
 
-    let response = JobResponse { job_id };
+    let response = serde_json::json!({
+        "job_id": job_id
+    });
     (StatusCode::OK, Json(response))
 }
 
@@ -144,14 +172,21 @@ async fn request_worst5(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     Json(payload): Json<QuestionRequest>,
 ) -> impl IntoResponse {
-    log_received_request(RequestType::WORST_5, &addr);
+    log_received_request(RequestType::WORST_5.as_str(), &addr);
+
+    if state.jobs.is_thread_pool_shut_down() {
+        return responde_with_server_shutdown_error();
+    }
+
     let json_request = serde_json::to_string(&payload).unwrap();
 
     let job_id: u32 = state.jobs.add_job(RequestType::WORST_5, &json_request);
 
     log_added_job_in_thread_pool(RequestType::WORST_5, &addr, job_id, &json_request);
 
-    let response = JobResponse { job_id };
+    let response = serde_json::json!({
+        "job_id": job_id
+    });
     (StatusCode::OK, Json(response))
 }
 
@@ -160,23 +195,36 @@ async fn request_global_mean(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     Json(payload): Json<QuestionRequest>,
 ) -> impl IntoResponse {
-    log_received_request(RequestType::GLOBAL_MEAN, &addr);
+    log_received_request(&RequestType::GLOBAL_MEAN.as_str(), &addr);
+
+    if state.jobs.is_thread_pool_shut_down() {
+        return responde_with_server_shutdown_error();
+    }
+
     let json_request = serde_json::to_string(&payload).unwrap();
 
     let job_id: u32 = state.jobs.add_job(RequestType::GLOBAL_MEAN, &json_request);
 
     log_added_job_in_thread_pool(RequestType::GLOBAL_MEAN, &addr, job_id, &json_request);
 
-    let response = JobResponse { job_id };
+    let response = serde_json::json!({
+        "job_id": job_id
+    });
     (StatusCode::OK, Json(response))
 }
+
+
 
 async fn request_diff_from_mean(
     State(state): State<Arc<AppState>>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     Json(payload): Json<QuestionRequest>,
 ) -> impl IntoResponse {
-    log_received_request(RequestType::DIFF_FROM_MEAN, &addr);
+    log_received_request(&RequestType::DIFF_FROM_MEAN.as_str(), &addr);
+    
+    if state.jobs.is_thread_pool_shut_down() {
+        return responde_with_server_shutdown_error();
+    }
     let json_request = serde_json::to_string(&payload).unwrap();
 
     let job_id: u32 = state
@@ -185,7 +233,9 @@ async fn request_diff_from_mean(
 
     log_added_job_in_thread_pool(RequestType::DIFF_FROM_MEAN, &addr, job_id, &json_request);
 
-    let response = JobResponse { job_id };
+    let response = serde_json::json!({
+        "job_id": job_id
+    });
     (StatusCode::OK, Json(response))
 }
 
@@ -194,7 +244,12 @@ async fn request_state_mean_by_category(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     Json(payload): Json<QuestionStateRequest>,
 ) -> impl IntoResponse {
-    log_received_request(RequestType::MEAN_BY_CATEGORY, &addr);
+    log_received_request(&RequestType::MEAN_BY_CATEGORY.as_str(), &addr);
+
+    if state.jobs.is_thread_pool_shut_down() {
+        return responde_with_server_shutdown_error();
+    }
+
     let json_request = serde_json::to_string(&payload).unwrap();
 
     let job_id: u32 = state
@@ -203,14 +258,10 @@ async fn request_state_mean_by_category(
 
     log_added_job_in_thread_pool(RequestType::MEAN_BY_CATEGORY, &addr, job_id, &json_request);
 
-    let response = JobResponse { job_id };
+    let response = serde_json::json!({
+        "job_id": job_id
+    });
     (StatusCode::OK, Json(response))
-}
-
-
-#[derive(Serialize)]
-struct ShutdownResponse {
-    status: String,
 }
 
 
@@ -220,45 +271,52 @@ async fn graceful_shutdown(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
 ) -> impl IntoResponse {
     // TODO
-    state.jobs.shutdown_thred_pool();
+    log_received_request("GET /api/graceful_shutdown", &addr);
+
+    if state.jobs.is_thread_pool_shut_down() {
+        return responde_with_server_shutdown_error();
+    }
+
+    state.jobs.shutdown_thread_pool();
 
     // Verifica daca mai sunt joburi active
     let pending = state.jobs.count_pending();
 
     let response = if pending > 0 {
-        ShutdownResponse { status: "running".into() }
+        serde_json::json!({
+            "status": "running"
+        })
     } else {
-        ShutdownResponse { status: "done".into() }
+        serde_json::json!({
+            "status": "done"
+        })
     };
 
     (StatusCode::OK, Json(response))
 }
 
-#[derive(Serialize)]
-struct JobsResponse {
-    status: String,
-    data: Vec<serde_json::Value>,
-}
 
 async fn get_jobs_status(
     State(state): State<Arc<AppState>>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
 ) -> impl IntoResponse {
     // TODO
+    log_received_request("GET /api/jobs", &addr);
+
     let statuses = state.jobs.get_jobs_status_snapshot();
     let mut data = Vec::new();
-    for (id, st) in statuses.iter() {
-        let status_str = match st {
+    for (id, status) in statuses.iter() {
+        let status_str = match status {
             JobStatus::Running => "running",
             JobStatus::Done => "done",
         };
         data.push(serde_json::json!({ id.to_string(): status_str }));
     }
 
-    let response = JobsResponse {
-        status: "done".into(),
-        data,
-    };
+    let response = serde_json::json!({
+        "status": "done",
+        "data": data
+    });
 
     (StatusCode::OK, Json(response))
 }
@@ -273,19 +331,14 @@ async fn get_num_pending_jobs(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
 ) -> impl IntoResponse {
     // TODO
+    log_received_request("GET /api/num_jobs", &addr);
+
     let pending = state.jobs.count_pending();
     let response = NumJobsResponse { pending };
     (StatusCode::OK, Json(response))
 }
 
 
-#[derive(Serialize)]
-#[serde(tag = "status", rename_all = "lowercase")]
-enum JobResultResponse {
-    Error { reason: String },
-    Running,
-    Done { data: serde_json::Value },
-}
 
 async fn get_job_result(
     State(state): State<Arc<AppState>>,
@@ -293,16 +346,23 @@ async fn get_job_result(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
 ) -> impl IntoResponse {
     // TODO
+    log_received_request(&format!("GET /api/get_results/{}", job_id), &addr);
+
     let statuses = state.jobs.get_jobs_status_snapshot();
 
     match statuses.get(&job_id) {
         None => {
-            let resp = JobResultResponse::Error { reason: "Invalid job_id".into() };
-            (StatusCode::OK, Json(resp))
+            let response = serde_json::json!({
+                "status": "error",
+                "reason": "Invalid job_id"
+            });
+            (StatusCode::OK, Json(response))
         }
         Some(JobStatus::Running) => {
-            let resp = JobResultResponse::Running;
-            (StatusCode::OK, Json(resp))
+            let response = serde_json::json!({
+                "status": "running"
+            });
+            (StatusCode::OK, Json(response))
         }
         Some(JobStatus::Done) => {
             let path = format!("./results/{}.json", job_id);
@@ -310,12 +370,18 @@ async fn get_job_result(
                 Ok(content) => {
                     let json_value: serde_json::Value =
                         serde_json::from_str(&content).unwrap_or(serde_json::json!({ "raw": content }));
-                    let resp = JobResultResponse::Done { data: json_value };
-                    (StatusCode::OK, Json(resp))
+                    let response = serde_json::json!({
+                        "status": "done",
+                        "data": json_value
+                    });
+                    (StatusCode::OK, Json(response))
                 }
                 Err(_) => {
-                    let resp = JobResultResponse::Error { reason: "Result file missing".into() };
-                    (StatusCode::OK, Json(resp))
+                    let response = serde_json::json!({
+                        "status": "error",
+                        "reason": "Result file is missing"
+                    });
+                    (StatusCode::OK, Json(response))
                 }
             }
         }
