@@ -5,7 +5,7 @@
         "mimeType": "application/json",
         "text": "{\"question\": \"Percent of adults who engage in no leisure-time physical activity\", \"state\": \"Indiana\"}"
     },
-    "url": "http://127.0.0.1:8000/api/mean_by_category",
+    "url": "http://127.0.0.1:5000/api/mean_by_category",
     "sortOrder": 3,
     "parameters": [],
     "pathParameters": [],

@@ -5,7 +5,7 @@
         "mimeType": "application/json",
         "text": "{\"question\": \"Percent of adults aged 18 years and older who have obesity\", \"state\": \"Colorado\"}"
     },
-    "url": "http://127.0.0.1:8000/api/state_mean",
+    "url": "http://127.0.0.1:5000/api/state_mean",
     "sortOrder": 14,
     "parameters": [],
     "pathParameters": [],

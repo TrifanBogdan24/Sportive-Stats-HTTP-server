@@ -5,7 +5,7 @@
         "mimeType": "application/json",
         "text": "{\"question\": \"Percent of adults who engage in muscle-strengthening activities on 2 or more days a week\"}"
     },
-    "url": "http://127.0.0.1:8000/api/global_mean",
+    "url": "http://127.0.0.1:5000/api/global_mean",
     "sortOrder": 5,
     "parameters": [],
     "pathParameters": [],

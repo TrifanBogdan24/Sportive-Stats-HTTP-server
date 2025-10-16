@@ -5,7 +5,7 @@
         "mimeType": "application/json",
         "text": "{\"question\": \"Percent of adults who report consuming vegetables less than one time daily\", \"state\": \"Minnesota\"}"
     },
-    "url": "http://127.0.0.1:8000/api/global_mean",
+    "url": "http://127.0.0.1:5000/api/global_mean",
     "sortOrder": 6,
     "parameters": [],
     "pathParameters": [],

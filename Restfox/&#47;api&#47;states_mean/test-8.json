@@ -5,7 +5,7 @@
         "mimeType": "application/json",
         "text": "{\"question\": \"Percent of adults who report consuming fruit less than one time daily\"}\n"
     },
-    "url": "http://127.0.0.1:8000/api/states_mean",
+    "url": "http://127.0.0.1:5000/api/states_mean",
     "sortOrder": 7,
     "parameters": [],
     "pathParameters": [],

@@ -6,6 +6,8 @@ use std::path::Path;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
+use serde::Serialize;
+use std::collections::HashMap;
 
 use crate::request_type::RequestType;
 
@@ -138,10 +140,20 @@ impl TaskRunner {
     }
 }
 
+#[derive(Clone, Copy, Serialize)]
+pub enum JobStatus {
+    Running,
+    Done,
+}
+
 pub struct JobManager {
     next_id: Arc<AtomicU32>,
     thread_pool: Arc<ThreadPool>,
+    statuses: Arc<Mutex<HashMap<u32, JobStatus>>>,
 }
+
+
+
 
 
 impl JobManager {
@@ -149,16 +161,36 @@ impl JobManager {
         Self {
             next_id: Arc::new(AtomicU32::new(1)),
             thread_pool,
+            statuses: Arc::new(Mutex::new(HashMap::new()))
         }
+    }
+
+    pub fn shutdown_thred_pool(&self) {
+        self.thread_pool.shutdown();
+    }
+
+    pub fn get_jobs_status_snapshot(&self) -> HashMap<u32, JobStatus> {
+        self.statuses.lock().unwrap().clone()
+    }
+
+    pub fn count_pending(&self) -> usize {
+        self.statuses.lock().unwrap()
+            .values()
+            .filter(|&&s| matches!(s, JobStatus::Running))
+            .count()
     }
 
     pub fn add_job(&self, request_type: RequestType, json_request: &str) -> u32 {
         let job_id = self.next_id.fetch_add(1, Ordering::SeqCst);
+       
+       // Clone data (to be used in closure)
         let req_data = json_request.to_string();
         let thread_pool = Arc::clone(&self.thread_pool);
+        let statuses = Arc::clone(&self.statuses);
 
         self.thread_pool.execute(move || {
             JobManager::run_job(thread_pool, job_id, request_type, req_data);
+            statuses.lock().unwrap().insert(job_id, JobStatus::Done);
         });
 
         job_id
@@ -247,7 +279,7 @@ impl JobManager {
             }
         };
 
-        // Step 2b: Write response under the lock
+        // Write response in .json file under the lock
         JobManager::write_result_to_file(file_lock, job_id, &json_response);
 
         print_log(
