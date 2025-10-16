@@ -4,14 +4,14 @@ on:
   push:
     branches: main
     paths:
-      - "method-py/**"
+      - "method-rs/**"
       - "api_tests_data/**"
       - "checker/**"
       - ".github/workflows/**"
   pull_request:
     branches: main
     paths:
-      - "method-py/**"
+      - "method-rs/**"
       - "api_tests_data/**"
       - "checker/**"
       - ".github/workflows/**"
