@@ -1,29 +1,33 @@
-mod data_ingestor;
-mod routes;
-mod request_type;
-mod thread_pool;
-mod logger;
 mod concurrent_hash_map;
+mod data_ingestor;
+mod logger;
+mod request_type;
+mod routes;
+mod thread_pool;
 
-
-use std::{net::SocketAddr, str::FromStr, fs};
+use std::{fs, net::SocketAddr, str::FromStr};
 use tokio::net::TcpListener;
 
 use std::path::Path;
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use axum::{
-    extract::State, http, routing::{get, post}, serve, Router
+    Router,
+    extract::State,
+    http,
+    routing::{get, post},
+    serve,
 };
 
+use crate::data_ingestor::{Table, load_csv};
 use crate::routes::http_server;
-use crate::data_ingestor::{load_csv, Table};
 
-use crate::thread_pool::{ThreadPool, JobManager};
+use crate::thread_pool::{JobManager, ThreadPool};
 
 use crate::logger::{LogType, print_log};
 
+use crate::concurrent_hash_map::ConcurrentHashMap;
 
 fn prep_results_dir() {
     if Path::new("./results").exists() {
@@ -35,7 +39,6 @@ fn prep_results_dir() {
     }
     fs::create_dir("./results").unwrap();
 }
-
 
 #[tokio::main]
 async fn main() {
@@ -51,12 +54,14 @@ async fn main() {
     let server: Router = http_server(jobs);
     let addr = SocketAddr::from_str("0.0.0.0:8000").unwrap();
 
-    print_log(LogType::Info, "Axum HTTP server is listening on 0.0.0.0:8000");
+    print_log(
+        LogType::Info,
+        "Axum HTTP server is listening on 0.0.0.0:8000",
+    );
     axum::serve(
         tokio::net::TcpListener::bind(addr).await.unwrap(),
         server.into_make_service_with_connect_info::<SocketAddr>(),
     )
     .await
     .unwrap();
-
 }

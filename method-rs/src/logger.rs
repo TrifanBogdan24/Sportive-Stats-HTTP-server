@@ -1,13 +1,11 @@
 pub enum LogType {
     Info,
-    Error
+    Error,
 }
-
 
 use chrono::{DateTime, Utc};
 
 const TIME_FORMAT: &str = "%Y-%m-%d %H:%M:%S";
-
 
 pub fn print_log(log_type: LogType, msg: &str) {
     let time_now: DateTime<Utc> = Utc::now();
@@ -18,4 +16,3 @@ pub fn print_log(log_type: LogType, msg: &str) {
         LogType::Error => println!("{:} UTC - ERROR - {:}", fmt_time, msg),
     }
 }
-

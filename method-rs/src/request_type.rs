@@ -9,13 +9,12 @@ pub enum RequestType {
     DIFF_FROM_MEAN,
     STATE_DIFF_FROM_MEAN,
     MEAN_BY_CATEGORY,
-    STATE_MEAN_BY_CATEGORY
+    STATE_MEAN_BY_CATEGORY,
 }
-
 
 impl RequestType {
     pub fn as_str(&self) -> &'static str {
-        match self  {
+        match self {
             RequestType::GET_RESULTS => "POST /api/get_results/<job_id>",
             RequestType::STATES_MEAN => "POST /api/states_mean",
             RequestType::STATE_MEAN => "POST /api/state_mean",
@@ -25,7 +24,7 @@ impl RequestType {
             RequestType::DIFF_FROM_MEAN => "POST /api/diff_from_mean",
             RequestType::STATE_DIFF_FROM_MEAN => "POST /api/state_diff_from_mean",
             RequestType::MEAN_BY_CATEGORY => "POST /api/mean_by_category",
-            RequestType::STATE_MEAN_BY_CATEGORY => "POST /api/state_mean_by_category"
+            RequestType::STATE_MEAN_BY_CATEGORY => "POST /api/state_mean_by_category",
         }
     }
 }

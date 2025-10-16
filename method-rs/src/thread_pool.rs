@@ -1,17 +1,18 @@
-use std::sync::{Arc, Mutex, Condvar};
-use std::sync::atomic::{AtomicU32, Ordering};
-use std::thread;
 use std::collections::VecDeque;
 use std::env;
-use std::path::Path;
-use std::fs::{File};
+use std::fs::File;
 use std::io::{BufWriter, Write};
+use std::path::Path;
+use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
 
 use crate::request_type::RequestType;
 
-
 use crate::data_ingestor::{
-    json_response_best5, json_response_diff_from_mean, json_response_global_mean, json_response_mean_by_catagory, json_response_state_mean, json_response_state_mean_by_category, json_response_states_mean, json_response_worst5, load_csv, Table
+    Table, json_response_best5, json_response_diff_from_mean, json_response_global_mean,
+    json_response_mean_by_catagory, json_response_state_mean, json_response_state_mean_by_category,
+    json_response_states_mean, json_response_worst5,
 };
 use crate::routes::{QuestionRequest, QuestionStateRequest};
 
@@ -26,13 +27,12 @@ pub struct ThreadPool {
     workers: Vec<TaskRunner>,
     queue: Arc<(Mutex<VecDeque<Job>>, Condvar)>,
     shutdown: Arc<Mutex<bool>>,
+    file_locks: ConcurrentHashMap<u32, Arc<Mutex<File>>>,
 }
 
 impl ThreadPool {
     /// Create a new ThreadPool
     pub fn new(table: Table) -> Self {
-        
-
         let num_threads: usize = match env::var("TP_NUM_OF_THREADS") {
             Ok(value) => match value.parse::<usize>() {
                 Ok(num_threads) => num_threads,
@@ -40,7 +40,11 @@ impl ThreadPool {
             },
             _ => num_cpus::get(),
         };
-        
+
+        // Create a lock on ./results/<job_id>.json file for each new job
+        // and delete it after the result is computed
+        let file_locks: ConcurrentHashMap<u32, Arc<Mutex<File>>> = ConcurrentHashMap::new();
+
         let queue = Arc::new((Mutex::new(VecDeque::new()), Condvar::new()));
         let shutdown = Arc::new(Mutex::new(false));
         let mut workers = Vec::with_capacity(num_threads);
@@ -53,14 +57,17 @@ impl ThreadPool {
             ));
         }
 
-
-        print_log(LogType::Info, &format!("Starting thread pool with {} runners", num_threads));
+        print_log(
+            LogType::Info,
+            &format!("Starting thread pool with {} runners", num_threads),
+        );
 
         ThreadPool {
             table: Mutex::new(table),
             workers,
             queue,
-            shutdown
+            shutdown,
+            file_locks,
         }
     }
 
@@ -83,9 +90,7 @@ impl ThreadPool {
         // Wake up all workers:
         self.queue.1.notify_all();
     }
-
 }
-
 
 pub struct TaskRunner {
     id: usize,
@@ -93,7 +98,11 @@ pub struct TaskRunner {
 }
 
 impl TaskRunner {
-    fn new(id: usize, queue: Arc<(Mutex<VecDeque<Job>>, Condvar)>, shutdown: Arc<Mutex<bool>>) -> Self {
+    fn new(
+        id: usize,
+        queue: Arc<(Mutex<VecDeque<Job>>, Condvar)>,
+        shutdown: Arc<Mutex<bool>>,
+    ) -> Self {
         let thread = thread::spawn(move || {
             loop {
                 let job_opt = {
@@ -122,30 +131,18 @@ impl TaskRunner {
             // Worker <id> is shutting down
         });
 
-        TaskRunner { id, thread: Some(thread) }
+        TaskRunner {
+            id,
+            thread: Some(thread),
+        }
     }
 }
-
-
 
 pub struct JobManager {
     next_id: Arc<AtomicU32>,
     thread_pool: Arc<ThreadPool>,
 }
 
-
-
-fn fwrite_job_result(job_id: u32, json_response: &str) {
-    // TODO: add mutex mechanism
-    let filename = format!("./results/{}.json", job_id);
-    let path = Path::new(&filename);
-
-    let file_out = File::create(path).unwrap();
-    let mut writer = BufWriter::new(file_out);
-
-    writeln!(writer, "{}", json_response).unwrap();
-    writer.flush().unwrap();
-}
 
 impl JobManager {
     pub fn new(thread_pool: Arc<ThreadPool>) -> Self {
@@ -155,108 +152,123 @@ impl JobManager {
         }
     }
 
-
-
-
-
     pub fn add_job(&self, request_type: RequestType, json_request: &str) -> u32 {
-        // Generate unique job ID
         let job_id = self.next_id.fetch_add(1, Ordering::SeqCst);
-
-        // Clone anything needed for the async closure
-        let req_type = request_type.clone();
         let req_data = json_request.to_string();
-
-
         let thread_pool = Arc::clone(&self.thread_pool);
 
         self.thread_pool.execute(move || {
-            match request_type {
-                RequestType::STATES_MEAN => {
-                    let table = thread_pool.table.lock().unwrap();
-                    let query: QuestionRequest = serde_json::from_str(&req_data).unwrap();
-                    let json_response = json_response_states_mean(&table, &query.question);
-
-                    // Write in results/<job_id>.json and log time
-                    fwrite_job_result(job_id, &json_response);
-                    print_log(LogType::Info, &format!("Response for job_id={} was computed and can be found at \"./results/{}.json\"",
-                        job_id, job_id));
-                },
-                RequestType::STATE_MEAN => {
-                    let table = thread_pool.table.lock().unwrap();
-                    let query: QuestionStateRequest = serde_json::from_str(&req_data).unwrap();
-                    let json_response = json_response_state_mean(&table, &query.question, &query.state);
-
-                    // Write in results/<job_id>.json and log time
-                    fwrite_job_result(job_id, &json_response);
-                    print_log(LogType::Info, &format!("Response for job_id={} was computed and can be found at \"./results/{}.json\"",
-                        job_id, job_id));
-                },
-                RequestType::BEST_5 => {
-                    let table = thread_pool.table.lock().unwrap();
-                    let query: QuestionRequest = serde_json::from_str(&req_data).unwrap();
-                    let json_response = json_response_best5(&table, &query.question);
-
-                    // Write in results/<job_id>.json and log time
-                    fwrite_job_result(job_id, &json_response);
-                    print_log(LogType::Info, &format!("Response for job_id={} was computed and can be found at \"./results/{}.json\"",
-                        job_id, job_id));
-                },
-                RequestType::WORST_5 => {
-                    let table = thread_pool.table.lock().unwrap();
-                    let query: QuestionRequest = serde_json::from_str(&req_data).unwrap();
-                    let json_response = json_response_worst5(&table, &query.question);
-
-                    // Write in results/<job_id>.json and log time
-                    fwrite_job_result(job_id, &json_response);
-                    print_log(LogType::Info, &format!("Response for job_id={} was computed and can be found at \"./results/{}.json\"",
-                        job_id, job_id));
-                },
-                RequestType::GLOBAL_MEAN => {
-                    let table = thread_pool.table.lock().unwrap();
-                    let query: QuestionRequest = serde_json::from_str(&req_data).unwrap();
-                    let json_response = json_response_global_mean(&table, &query.question);
-
-                    // Write in results/<job_id>.json and log time
-                    fwrite_job_result(job_id, &json_response);
-                    print_log(LogType::Info, &format!("Response for job_id={} was computed and can be found at \"./results/{}.json\"",
-                        job_id, job_id));
-                },
-                RequestType::DIFF_FROM_MEAN => {
-                    let table = thread_pool.table.lock().unwrap();
-                    let query: QuestionRequest = serde_json::from_str(&req_data).unwrap();
-                    let json_response = json_response_diff_from_mean(&table, &query.question);
-
-                    // Write in results/<job_id>.json and log time
-                    fwrite_job_result(job_id, &json_response);
-                    print_log(LogType::Info, &format!("Response for job_id={} was computed and can be found at \"./results/{}.json\"",
-                        job_id, job_id));
-                },
-                RequestType::MEAN_BY_CATEGORY => {
-                    let table = thread_pool.table.lock().unwrap();
-                    let query: QuestionRequest = serde_json::from_str(&req_data).unwrap();
-                    let json_response = json_response_mean_by_catagory(&table, &query.question);
-
-                    // Write in results/<job_id>.json and log time
-                    fwrite_job_result(job_id, &json_response);
-                    print_log(LogType::Info, &format!("Response for job_id={} was computed and can be found at \"./results/{}.json\"",
-                        job_id, job_id));
-                },
-                RequestType::STATE_MEAN_BY_CATEGORY => {
-                    let table = thread_pool.table.lock().unwrap();
-                    let query: QuestionStateRequest = serde_json::from_str(&req_data).unwrap();
-                    let json_response = json_response_state_mean_by_category(&table, &query.question, &query.state);
-
-                    // Write in results/<job_id>.json and log time
-                    fwrite_job_result(job_id, &json_response);
-                    print_log(LogType::Info, &format!("Response for job_id={} was computed and can be found at \"./results/{}.json\"",
-                        job_id, job_id));
-                },
-
-                _ => ()
-            }
+            JobManager::run_job(thread_pool, job_id, request_type, req_data);
         });
 
         job_id
+    }
+
+    fn run_job(thread_pool: Arc<ThreadPool>, job_id: u32, request_type: RequestType, req_data: String) {
+        // Create and lock the file
+        let path = format!("./results/{}.json", job_id);
+        if let Some(parent) = std::path::Path::new(&path).parent() {
+            if let Err(e) = std::fs::create_dir_all(parent) {
+                print_log(LogType::Error, &format!("Failed to create results dir: {}", e));
+                return;
+            }
+        }
+
+        let file = match File::create(&path) {
+            Ok(f) => f,
+            Err(e) => {
+                print_log(LogType::Error, &format!("Failed to create file {}: {}", path, e));
+                return;
+            }
+        };
+
+        let file_lock = Arc::new(Mutex::new(file));
+        thread_pool.file_locks.insert(job_id, Arc::clone(&file_lock));
+
+        // Run the job logic
+        JobManager::handle_request_type(&thread_pool, job_id, request_type, &req_data, &file_lock);
+
+        // Remove file lock entry (file stays on disk)
+        thread_pool.file_locks.delete(&job_id);
+        print_log(LogType::Info, &format!("File lock for job_id={} removed", job_id));
+    }
+
+    fn handle_request_type(
+        thread_pool: &Arc<ThreadPool>,
+        job_id: u32,
+        request_type: RequestType,
+        req_data: &str,
+        file_lock: &Arc<Mutex<File>>,
+    ) {
+        let json_response = match request_type {
+            RequestType::STATES_MEAN => {
+                let table = thread_pool.table.lock().unwrap();
+                let query: QuestionRequest = serde_json::from_str(req_data).unwrap();
+                json_response_states_mean(&table, &query.question)
+            }
+            RequestType::STATE_MEAN => {
+                let table = thread_pool.table.lock().unwrap();
+                let query: QuestionStateRequest = serde_json::from_str(req_data).unwrap();
+                json_response_state_mean(&table, &query.question, &query.state)
+            }
+            RequestType::BEST_5 => {
+                let table = thread_pool.table.lock().unwrap();
+                let query: QuestionRequest = serde_json::from_str(req_data).unwrap();
+                json_response_best5(&table, &query.question)
+            }
+            RequestType::WORST_5 => {
+                let table = thread_pool.table.lock().unwrap();
+                let query: QuestionRequest = serde_json::from_str(req_data).unwrap();
+                json_response_worst5(&table, &query.question)
+            }
+            RequestType::GLOBAL_MEAN => {
+                let table = thread_pool.table.lock().unwrap();
+                let query: QuestionRequest = serde_json::from_str(req_data).unwrap();
+                json_response_global_mean(&table, &query.question)
+            }
+            RequestType::DIFF_FROM_MEAN => {
+                let table = thread_pool.table.lock().unwrap();
+                let query: QuestionRequest = serde_json::from_str(req_data).unwrap();
+                json_response_diff_from_mean(&table, &query.question)
+            }
+            RequestType::MEAN_BY_CATEGORY => {
+                let table = thread_pool.table.lock().unwrap();
+                let query: QuestionRequest = serde_json::from_str(req_data).unwrap();
+                json_response_mean_by_catagory(&table, &query.question)
+            }
+            RequestType::STATE_MEAN_BY_CATEGORY => {
+                let table = thread_pool.table.lock().unwrap();
+                let query: QuestionStateRequest = serde_json::from_str(req_data).unwrap();
+                json_response_state_mean_by_category(&table, &query.question, &query.state)
+            }
+            _ => {
+                print_log(LogType::Error, &format!("Unhandled request type for job_id={}", job_id));
+                return;
+            }
+        };
+
+        // Step 2b: Write response under the lock
+        JobManager::write_result_to_file(file_lock, job_id, &json_response);
+
+        print_log(
+            LogType::Info,
+            &format!(
+                "Response for job_id={} was computed and saved to ./results/{}.json",
+                job_id, job_id
+            ),
+        );
+    }
+
+    fn write_result_to_file(file_lock: &Arc<Mutex<File>>, job_id: u32, data: &str) {
+        match file_lock.lock() {
+            Ok(mut file_guard) => {
+                if let Err(e) = writeln!(file_guard, "{}", data) {
+                    print_log(LogType::Error, &format!("Failed to write job {}: {}", job_id, e));
+                }
+            }
+            Err(_) => {
+                print_log(LogType::Error, &format!("Poisoned file lock for job {}", job_id));
+            }
+        }
     }
 }
