@@ -62,7 +62,7 @@ class DataIngestor:
 
     def _read_csv(self, csv_path):
         """Reads the CSV file and extracts only the relevant columns"""
-        from app import webserver
+        # from app import webserver
 
         with open(csv_path, newline='', encoding='utf-8') as csvfile:
             reader = csv.reader(csvfile)
@@ -73,11 +73,11 @@ class DataIngestor:
                     entry = TableEntry(index, row)
                     self.table_entries.append(entry)
                 except ValueError as err:
-                    webserver.logger.log_message(
+                    print(
                         f"- ERROR - Skipping row {index} from CSV '{csv_path}' "\
                         f"due to error: {err}")
 
-            webserver.logger.log_message(f"- INFO - Loaded '{csv_path}' in memory")
+            # webserver.logger.log_message(f"- INFO - Loaded '{csv_path}' in memory")
 
 
     def compute_response_states_mean(self, question: str) -> Dict:

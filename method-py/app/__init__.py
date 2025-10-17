@@ -7,27 +7,27 @@ from flask import Flask
 from app.data_ingestor import DataIngestor
 from app.task_runner import ThreadPool
 from app.logger import Logger
+from app.routes import register_routes
 
 
+def create_app():
+    """Flask application factory."""
 
-if not os.path.exists('results'):
-    os.mkdir('results')
-else:
-    os.system("rm -rf results/*")
+    app = Flask(__name__)
 
+    results_dir = 'results'
+    if not os.path.exists(results_dir):
+        os.mkdir(results_dir)
+    else:
+        os.system(f"rm -rf {results_dir}/*")
 
-webserver = Flask(__name__)
+    app.logger = Logger()
+    app.data_ingestor = DataIngestor("../nutrition_activity_obesity_usa_subset.csv")
+    app.job_counter = 1
+    app.tasks_runner = ThreadPool(app)
+    app.is_shutting_down = False
+    app.lock_is_shutting_down = Lock()
 
-webserver.logger = Logger()
-webserver.data_ingestor = DataIngestor("../nutrition_activity_obesity_usa_subset.csv")
+    register_routes(app)
 
-
-webserver.job_counter = 1
-webserver.tasks_runner = ThreadPool()
-
-
-webserver.is_shutting_down = False
-webserver.lock_is_shutting_down = Lock()
-
-
-from app import routes
+    return app

@@ -25,7 +25,7 @@ class ThreadPool:
     - A group of workers (threads)
     """
 
-    def __init__(self):
+    def __init__(self, webserver=None):
         """
         Set up the Thread Pool:
         - Create synchronization variables
@@ -34,7 +34,7 @@ class ThreadPool:
             - if the variable was not set, on the number of CPU cores
         - Start the threads
         """
-        from app import webserver
+        self.webserver = webserver
 
         # If the environment variable TP_NUM_OF_THREADS is not set (is None),
         # the number of created threads will equal the number of CPU cores
@@ -52,28 +52,26 @@ class ThreadPool:
         self.workers = []
 
         for _ in range(self.num_threads):
-            worker = TaskRunner(self.job_queue, self.shutdown_event)
+            worker = TaskRunner(self.job_queue, self.shutdown_event, self.webserver)
             worker.start()
             self.workers.append(worker)
 
-        webserver.logger.log_message(f"- INFO - Server started with {self.num_threads} threads")
+        self.webserver.logger.log_message(f"- INFO - Server started with {self.num_threads} threads")
 
 
     def add_job(self, job_type: JobType, request_data: Dict, ip_addr: str):
         """Inserts the job in the server's Queue"""
-        from app import webserver
-
         # Get job_id and increment JOB counter
         with self.lock_job_counter:
-            job_id = webserver.job_counter
-            webserver.job_counter += 1
+            job_id = self.webserver.job_counter
+            self.webserver.job_counter += 1
 
         # Write in .log file
         message = \
             f"- INFO - Received 'POST {job_type.value}' request from {ip_addr}. " \
             f"Sucessfully created job_id={job_id} " \
             f"for request_data={request_data}"
-        webserver.logger.log_message(message)
+        self.webserver.logger.log_message(message)
 
         # Create new JOB
         job = {"job_id": job_id, "job_type": job_type, "request_data": request_data}
@@ -95,19 +93,16 @@ class ThreadPool:
         Returns the JSON response for 'GET /api/get_results/<job_id>' request
         by reading job's data from the disk
         """
-        from app import webserver
-
-
         num_jobs = 0
         with self.lock_job_counter:
-            num_jobs = webserver.job_counter - 1
+            num_jobs = self.webserver.job_counter - 1
 
         if job_id < 1 or job_id > num_jobs:
             # Bad Request status code
             message = \
                 f"- ERROR - Received bad request 'GET api/get_results/{job_id}' from {ip_addr}. " \
                 f"Invalid job_id \'{job_id}\'! It is outside of range."
-            webserver.logger.log_message(message)
+            self.webserver.logger.log_message(message)
             return jsonify({"status": "error", "reason": "Invalid job_id"}), 400
 
 
@@ -119,7 +114,7 @@ class ThreadPool:
                 f"- ERROR - Received 'GET api/get_results/{job_id}' request from {ip_addr}. " \
                 f"Result file for job_id='{job_id}', " \
                 f"expected to be at '{file_path}', but DOES NOT EXIST!"
-            webserver.logger.log_message(message)
+            self.webserver.logger.log_message(message)
             return jsonify({"status": "error", "reason": "Invalid job_id"}), 500
 
 
@@ -134,7 +129,7 @@ class ThreadPool:
             message = \
                 f"- INFO - Received 'GET api/get_results/{job_id}' request from {ip_addr}. " \
                 "Server responded with requested data and 200 exit code."
-            webserver.logger.log_message(message)
+            self.webserver.logger.log_message(message)
 
             with open(file_path, "r", encoding="utf-8") as file:
                 result = json.load(file)
@@ -144,7 +139,7 @@ class ThreadPool:
             message = \
                 f"- ERROR - Received 'GET api/get_results/{job_id}' request from {ip_addr}. " \
                 f"Internal Server Error: failed to read data for job_id='{job_id}'"
-            webserver.logger.log_message(message)
+            self.webserver.logger.log_message(message)
             return jsonify({"status": "error", "reason": "Invalid job_id"}), 500
 
     def get_num_pending_jobs(self):
@@ -155,26 +150,24 @@ class ThreadPool:
         """
         Waits for all workers to finish their tasks and stops them
         """
-        from app import webserver
-
-        with webserver.lock_is_shutting_down:
-            if webserver.is_shutting_down:
+        with self.webserver.lock_is_shutting_down:
+            if self.webserver.is_shutting_down:
                 # Custom message if the shut_down requests is made multiple
                 response = {"status": "done", "reason": "already shut down"}
 
                 message = \
                     f"- INFO - Received request 'GET /api/graceful_shutdown' from {ip_addr}. " \
                     f"Server responded with {response} and 200 exit code."
-                webserver.logger.log_message(message)
+                self.webserver.logger.log_message(message)
 
                 return response
-            webserver.is_shutting_down = True
+            self.webserver.is_shutting_down = True
 
         message = f"- INFO - Received 'GET /api/graceful_shutdown' request from {ip_addr}."
-        webserver.logger.log_message(message)
+        self.webserver.logger.log_message(message)
 
         message = f"- INFO - Number of worker threads to join = {len(self.workers)}"
-        webserver.logger.log_message(message)
+        self.webserver.logger.log_message(message)
 
         self.shutdown_event.set()  # Signal all workers to stop
 
@@ -184,11 +177,11 @@ class ThreadPool:
         # Wait for all workers to exit
         for tid, worker in enumerate(self.workers):
             message = f"- INFO - Joining thread TID={tid}"
-            webserver.logger.log_message(message)
+            self.webserver.logger.log_message(message)
             worker.join()  # Make sure every thread finishes
 
         message = "- INFO - Server stopped the Thread Pool"
-        webserver.logger.log_message(message)
+        self.webserver.logger.log_message(message)
         return {'status': 'done'}
 
     def get_all_jobs_status(self) -> Dict:
@@ -198,8 +191,6 @@ class ThreadPool:
         Returns the status of all jobs that have been created
         up until the time the function was called.
         """
-        from app import webserver
-
         response = {
             "status": "done",
             "data": []
@@ -207,7 +198,7 @@ class ThreadPool:
 
         num_total_jobs = 0
         with self.lock_job_counter:
-            num_total_jobs = webserver.job_counter
+            num_total_jobs = self.webserver.job_counter
         for job_id in range(1, num_total_jobs + 1):
             file_path = os.path.join('results', f'{job_id}.json')
 
@@ -215,7 +206,7 @@ class ThreadPool:
                 continue
 
 
-            file_lock = webserver.tasks_runner.file_data_base.get(job_id)
+            file_lock = self.webserver.tasks_runner.file_data_base.get(job_id)
 
             with (file_lock if file_lock else nullcontext()):
                 with open(file_path, 'r', encoding='utf-8') as file:
@@ -232,7 +223,7 @@ class ThreadPool:
 class TaskRunner(Thread):
     """A worker/thread"""
 
-    def __init__(self, job_queue, shutdown_event):
+    def __init__(self, job_queue, shutdown_event, webserver):
         """
         A TaskRunner has 2 fields:
         - job_queue: server's Queue(), a thread-safe variable shared between all threads
@@ -241,6 +232,7 @@ class TaskRunner(Thread):
         super().__init__()
         self.job_queue = job_queue
         self.shutdown_event = shutdown_event
+        self.webserver = webserver
 
     def run(self):
         """
@@ -262,8 +254,6 @@ class TaskRunner(Thread):
         Based on the job type, it will build the JSON result and store it in data base, on disk. 
         At the end of the computations, it will write in the .log file that the job was processed 
         """
-        from app import webserver
-
         job_id: int = job["job_id"]
         job_type: JobType = job["job_type"]
         request_data: str = job["request_data"]
@@ -271,48 +261,48 @@ class TaskRunner(Thread):
 
         if job_type == JobType.STATES_MEAN:
             question: str = request_data.get("question", "")
-            response_data = webserver.data_ingestor.compute_response_states_mean(question)
+            response_data = self.webserver.data_ingestor.compute_response_states_mean(question)
         elif job_type == JobType.STATE_MEAN:
             question: str = request_data.get("question", "")
             state: str = request_data.get("state", "")
-            response_data = webserver.data_ingestor.compute_response_state_mean(question, state)
+            response_data = self.webserver.data_ingestor.compute_response_state_mean(question, state)
         elif job_type == JobType.BEST_5:
             question: str = request_data.get("question", "")
-            response_data = webserver.data_ingestor.compute_response_best5(question)
+            response_data = self.webserver.data_ingestor.compute_response_best5(question)
         elif job_type == JobType.WORST_5:
             question: str = request_data.get("question", "")
-            response_data = webserver.data_ingestor.compute_response_worst5(question)
+            response_data = self.webserver.data_ingestor.compute_response_worst5(question)
         elif job_type == JobType.GLOBAL_MEAN:
             question: str = request_data.get("question", "")
-            response_data = webserver.data_ingestor.compute_response_global_mean(question)
+            response_data = self.webserver.data_ingestor.compute_response_global_mean(question)
         elif job_type == JobType.DIFF_FROM_MEAN:
             question: str = request_data.get("question", "")
-            response_data = webserver.data_ingestor.compute_response_diff_from_mean(question)
+            response_data = self.webserver.data_ingestor.compute_response_diff_from_mean(question)
         elif job_type == JobType.STATE_DIFF_FROM_MEAN:
             question: str = request_data.get("question", "")
             state: str = request_data.get("state", "")
-            response_data = webserver.data_ingestor.compute_response_state_diff_from_mean(
+            response_data = self.webserver.data_ingestor.compute_response_state_diff_from_mean(
                 question, state
             )
         elif job_type == JobType.MEAN_BY_CATEGORY:
             question: str = request_data.get("question", "")
-            response_data = webserver.data_ingestor.compute_response_mean_by_category(question)
+            response_data = self.webserver.data_ingestor.compute_response_mean_by_category(question)
         elif job_type == JobType.STATE_MEAN_BY_CATEGORY:
             question: str = request_data.get("question", "")
             state: str = request_data.get("state", "")
-            response_data = webserver.data_ingestor.compute_response_state_mean_by_category(
+            response_data = self.webserver.data_ingestor.compute_response_state_mean_by_category(
                 question, state)
 
         # Save JOB's results to disk
-        with webserver.tasks_runner.file_data_base.get(job_id):
+        with self.webserver.tasks_runner.file_data_base.get(job_id):
             with open(os.path.join("results", f"{job_id}.json"), "w", encoding="utf-8") as file:
                 json.dump({"status": "done", "data": response_data}, file)
 
         # Delete file's lock
-        webserver.tasks_runner.file_data_base.delete(job_id)
+        self.webserver.tasks_runner.file_data_base.delete(job_id)
 
         # Write in .log file
         message = \
             f"- INFO - Computed response for job_id={job_id} " \
             f"can be found at 'results/{job_id}.json'"
-        webserver.logger.log_message(message)
+        self.webserver.logger.log_message(message)

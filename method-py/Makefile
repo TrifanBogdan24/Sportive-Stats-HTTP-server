@@ -21,5 +21,5 @@ run_tests: enforce_venv
 	python3 ../checker/checker.py
 
 
-run_my_unittests: enforce_venv
-	PYTHONPATH=. python3 unittests/TestWebserver.py
+test_data_ingestor: enforce_venv
+	PYTHONPATH=. python3 unittests/TestDataIngestor.py
